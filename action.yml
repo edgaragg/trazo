@@ -1,0 +1,13 @@
+name: Trazo
+description: Report architecture changes on pull requests, with a Mermaid diagram of the result.
+author: Edgar González
+branding:
+  icon: map
+  color: blue
+inputs:
+  github-token:
+    description: Token used to post the pull request comment.
+    default: ${{ github.token }}
+runs:
+  using: node24
+  main: packages/action/dist/index.cjs

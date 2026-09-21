@@ -1,0 +1,16 @@
+{
+  "name": "@trazo/action",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GitHub Action that reports architecture changes on pull requests.",
+  "license": "MIT",
+  "author": "Edgar González",
+  "type": "module",
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@trazo/core": "*",
+    "trazo": "*"
+  }
+}
