@@ -107,10 +107,11 @@ files → extractor → architecture model → diff against base → Markdown re
 ## Development
 
 ```bash
-npm install
+npm install         # also installs the pre-commit hook
 npm run build       # compiles core, then the CLI, then bundles the Action
 npm run typecheck
 npm test
+npm run trazo -- generate examples/basic   # run the CLI from source
 ```
 
 Requires Node.js 20 or later.
@@ -119,7 +120,9 @@ Requires Node.js 20 or later.
 
 A format is an `Extractor`: a `matches(path)` check and an `extract(file)` function that returns components and dependencies. Add one in [`packages/core/src/extractors`](packages/core/src/extractors), register it in `defaultExtractors`, and cover it with a test. Nothing else needs to change.
 
-The Action ships as a committed bundle (`packages/action/dist`), because GitHub runs actions straight from the repository. Rebuild it with `npm run build` before releasing.
+The Action ships as a committed bundle (`packages/action/dist`), because GitHub runs actions straight from the repository. You don't rebuild it by hand: a pre-commit hook does it whenever a staged file can change the bundle, and CI fails if the committed bundle is out of date. The hook is installed by `npm install`; if you skip it (`--no-verify`), run `npm run build` yourself.
+
+This repository also runs Trazo on its own pull requests ([`architecture.yml`](.github/workflows/architecture.yml)), using the bundle from the pull request itself.
 
 ## License
 

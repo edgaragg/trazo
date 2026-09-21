@@ -1,0 +1,2 @@
+# The Action bundle is generated. Collapse it in pull request diffs and language stats.
+packages/action/dist/** linguist-generated=true

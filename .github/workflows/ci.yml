@@ -16,5 +16,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Check the Action bundle is committed and up to date
+        run: |
+          # Compares content, not file metadata, so it does not depend on the platform.
+          untracked="$(git ls-files --others --exclude-standard packages/action/dist)"
+          if ! git diff --exit-code --stat packages/action/dist || [ -n "$untracked" ]; then
+            echo "::error::packages/action/dist is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi
       - run: npm run typecheck
       - run: npm test
