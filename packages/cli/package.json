@@ -1,0 +1,31 @@
+{
+  "name": "trazo",
+  "version": "0.0.0",
+  "description": "Generate Mermaid architecture diagrams from your infrastructure code, and catch architecture drift.",
+  "license": "MIT",
+  "author": "Edgar González",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edgaragg/trazo.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "trazo": "./dist/bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts src/bin.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "@trazo/core": "*"
+  }
+}

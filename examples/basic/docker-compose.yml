@@ -1,0 +1,32 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+  api:
+    build: ./api
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+      queue:
+        condition: service_started
+
+  worker:
+    build: ./worker
+    depends_on:
+      - queue
+      - db
+
+  db:
+    image: postgres:16
+
+  cache:
+    image: redis:7
+
+  queue:
+    image: rabbitmq:3-management

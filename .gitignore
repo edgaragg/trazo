@@ -141,3 +141,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Trazo
+# The GitHub Action runs straight from the repository, so its bundle must be committed.
+!packages/action/dist/

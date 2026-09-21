@@ -1,0 +1,30 @@
+{
+  "name": "@trazo/core",
+  "version": "0.0.0",
+  "description": "Architecture model extraction, diffing and Mermaid rendering for Trazo.",
+  "license": "MIT",
+  "author": "Edgar González",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edgaragg/trazo.git",
+    "directory": "packages/core"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

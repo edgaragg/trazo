@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@trazo/core": ["packages/core/src/index.ts"],
+      "trazo": ["packages/cli/src/index.ts"]
+    }
+  },
+  "include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]
+}
