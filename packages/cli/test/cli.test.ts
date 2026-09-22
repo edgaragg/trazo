@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -22,6 +22,7 @@ function cli(...args: string[]) {
     cwd: dir,
     out: (text) => (out += text),
     err: (text) => (err += text),
+    writeFile: (path, content) => writeFileSync(path, content),
   });
   return { code, out, err };
 }
@@ -67,7 +68,7 @@ describe("trazo generate", () => {
     const { code, err } = cli("generate");
 
     expect(code).toBe(1);
-    expect(err).toContain("no supported files found");
+    expect(err).toContain("no supported infrastructure files found");
   });
 
   it("reports malformed YAML instead of crashing", () => {
@@ -76,6 +77,53 @@ describe("trazo generate", () => {
 
     expect(code).toBe(1);
     expect(err).toContain("Invalid YAML in docker-compose.yml");
+  });
+
+  it("can render a full architecture document as Markdown", () => {
+    write("docker-compose.yml", "services:\n  api:\n    depends_on: [db]\n  db:\n    image: postgres:16\n");
+    const { code, out } = cli("generate", "--format", "markdown");
+
+    expect(code).toBe(0);
+    expect(out).toContain("<!-- trazo-architecture -->");
+    expect(out).toContain("```mermaid");
+    expect(out).toContain("## Components");
+    expect(out).toContain("`api` → `db`");
+  });
+
+  it("writes to a file instead of stdout with --out", () => {
+    write("docker-compose.yml", "services:\n  api: {}\n");
+    const { code, out } = cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
+
+    expect(code).toBe(0);
+    expect(out).toBe("");
+    expect(readFileSync(join(dir, "ARCHITECTURE.md"), "utf8")).toContain("`api` (service)");
+  });
+
+  it("resolves --out against cwd, not against the scanned directory", () => {
+    write("deploy/docker-compose.yml", "services:\n  api: {}\n");
+    const { code } = cli("generate", "deploy", "--out", "ARCHITECTURE.md");
+
+    expect(code).toBe(0);
+    expect(existsSync(join(dir, "ARCHITECTURE.md"))).toBe(true);
+    expect(existsSync(join(dir, "deploy", "ARCHITECTURE.md"))).toBe(false);
+  });
+
+  it("with --out, writes a file saying so instead of failing when nothing is found", () => {
+    const { code, err } = cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
+
+    expect(code).toBe(0);
+    expect(err).toBe("");
+    expect(readFileSync(join(dir, "ARCHITECTURE.md"), "utf8")).toContain(
+      "No supported infrastructure files were found.",
+    );
+  });
+
+  it("rejects an unknown format", () => {
+    write("docker-compose.yml", "services:\n  api: {}\n");
+    const { code, err } = cli("generate", "--format", "yaml");
+
+    expect(code).toBe(1);
+    expect(err).toContain('unknown format "yaml"');
   });
 });
 

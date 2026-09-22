@@ -7621,9 +7621,9 @@ function toMermaid(model, options = {}) {
   }
   return lines.join("\n");
 }
-var REPORT_MARKER = "<!-- trazo-report -->";
 var code = (text) => `\`${text}\``;
 var describeNode = (node) => node.image ? `${code(node.name)} (${node.kind}, ${code(node.image)})` : `${code(node.name)} (${node.kind})`;
+var REPORT_MARKER = "<!-- trazo-report -->";
 function section(title, items) {
   return items.length === 0 ? [] : [`### ${title}`, "", ...items.map((item) => `- ${item}`), ""];
 }
@@ -7661,7 +7661,7 @@ function renderDiffMarkdown(diff, after) {
   return lines.join("\n");
 }
 
-// ../cli/dist/chunk-S2OGTVEB.js
+// ../cli/dist/chunk-53JLAUMZ.js
 var import_child_process = require("child_process");
 var import_fs = require("fs");
 var import_path = require("path");
