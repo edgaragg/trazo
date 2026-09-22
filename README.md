@@ -108,8 +108,8 @@ files → extractor → architecture model → diff against base → Markdown re
 ## Limitations
 
 - Only **declared** relationships are detected (`depends_on`, `links`, or an Ingress's backend Service). A service that finds its database through an environment variable is not linked to it, and raw Kubernetes manifests have no way to declare that one workload calls another.
-- Component ids come from service or resource names. Two files that define the same name are merged into one component.
-- A Kubernetes Ingress is only linked to a workload when the Service between them is declared in the *same file*; Trazo reads one file at a time, so a Service defined elsewhere can't be resolved.
+- Docker Compose component ids come from the service name; two Compose files that define the same service name are merged into one component. Kubernetes ids are scoped to their namespace (`namespace/name`, defaulting to `default`), so the same resource name in different namespaces stays separate — but both are still drawn with just their bare name, so two same-named components from different namespaces look identical on a diagram that shows more than one namespace at once.
+- A Kubernetes Service only selects workloads, and an Ingress only resolves a Service, within its own namespace — matching real Kubernetes behaviour — and only when they are declared in the *same file*; Trazo reads one file at a time, so a Service defined elsewhere can't be resolved.
 - The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token.
 
 ## Development
