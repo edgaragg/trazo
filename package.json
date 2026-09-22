@@ -12,7 +12,8 @@
   "workspaces": [
     "packages/core",
     "packages/cli",
-    "packages/action"
+    "packages/action",
+    "packages/bitbucket"
   ],
   "engines": {
     "node": ">=20"
