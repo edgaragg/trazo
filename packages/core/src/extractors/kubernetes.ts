@@ -43,6 +43,9 @@ function parseDocuments(content: string, path: string): unknown[] {
 interface Resource {
   kind: string;
   name: string;
+  /** From `metadata.namespace`, or `"default"` when absent — the namespace a resource is
+   * created in when none is given, matching Kubernetes' own behaviour. */
+  namespace: string;
   spec: Record<string, unknown>;
   /** Labels on the pods this resource manages, used to resolve a Service's selector. Empty for kinds without pods. */
   podLabels: Record<string, string>;
@@ -68,24 +71,34 @@ function parseResource(doc: unknown): Resource | undefined {
     return undefined;
   }
   const kind = doc["kind"];
-  const name = child(doc, "metadata")?.["name"];
+  const metadata = child(doc, "metadata");
+  const name = metadata?.["name"];
   if (typeof name !== "string") return undefined;
+  const namespace = typeof metadata?.["namespace"] === "string" ? metadata["namespace"] : "default";
   const spec = child(doc, "spec") ?? {};
 
   if (kind === "Pod") {
-    return { kind, name, spec, podLabels: stringEntries(child(doc, "metadata")?.["labels"]), image: firstContainerImage(spec) };
+    return {
+      kind,
+      name,
+      namespace,
+      spec,
+      podLabels: stringEntries(metadata?.["labels"]),
+      image: firstContainerImage(spec),
+    };
   }
   if (WORKLOAD_KINDS.has(kind)) {
     const template = podTemplate(kind, spec);
     return {
       kind,
       name,
+      namespace,
       spec,
       podLabels: stringEntries(child(template, "metadata")?.["labels"]),
       image: firstContainerImage(child(template, "spec")),
     };
   }
-  return { kind, name, spec, podLabels: {}, image: undefined };
+  return { kind, name, namespace, spec, podLabels: {}, image: undefined };
 }
 
 /** A Service selects a workload when every key in its selector matches that workload's pod labels. */
@@ -123,6 +136,13 @@ function ingressBackends(spec: Record<string, unknown>): string[] {
  * Pods each become a component, classified by their first container's image. Ingresses become
  * a component too, with a dependency on the workload(s) their backend Service selects.
  *
+ * Every resource is scoped to its namespace (`metadata.namespace`, or `default` when absent),
+ * exactly as Kubernetes itself scopes them: a component's id is `namespace/name`, and a Service
+ * only resolves an Ingress's backend, or selects a workload's pods, within its own namespace. Two
+ * resources with the same name in different namespaces are different components, never merged
+ * into one — the display name is still the bare resource name, though, so two same-named
+ * components from different namespaces look identical when drawn on the same diagram.
+ *
  * A Service is never drawn on its own; it only resolves an Ingress's backend name to the
  * workload it points at. That resolution only works when the Service and the workload it
  * selects are declared in the same file, because extractors read one file at a time. A Service
@@ -142,35 +162,46 @@ export const kubernetesExtractor: Extractor = {
       .map(parseResource)
       .filter((resource): resource is Resource => resource !== undefined);
 
+    const id = (resource: Pick<Resource, "namespace" | "name">) => `${resource.namespace}/${resource.name}`;
+
     const nodes: ArchNode[] = [];
-    const services: Array<{ name: string; selector: Record<string, string> }> = [];
-    const ingresses: Array<{ name: string; backends: string[] }> = [];
+    const services: Array<{ namespace: string; name: string; selector: Record<string, string> }> = [];
+    const ingresses: Array<{ namespace: string; name: string; backends: string[] }> = [];
 
     for (const resource of resources) {
       if (WORKLOAD_KINDS.has(resource.kind)) {
         nodes.push({
-          id: resource.name,
+          id: id(resource),
           name: resource.name,
           kind: classifyImage(resource.image),
           source: file.path,
           ...(resource.image !== undefined && { image: resource.image }),
         });
       } else if (resource.kind === "Service") {
-        services.push({ name: resource.name, selector: stringEntries(resource.spec["selector"]) });
+        services.push({
+          namespace: resource.namespace,
+          name: resource.name,
+          selector: stringEntries(resource.spec["selector"]),
+        });
       } else if (resource.kind === "Ingress") {
-        nodes.push({ id: resource.name, name: resource.name, kind: "service", source: file.path });
-        ingresses.push({ name: resource.name, backends: ingressBackends(resource.spec) });
+        nodes.push({ id: id(resource), name: resource.name, kind: "service", source: file.path });
+        ingresses.push({ namespace: resource.namespace, name: resource.name, backends: ingressBackends(resource.spec) });
       }
     }
 
     const edges: ArchEdge[] = [];
     for (const ingress of ingresses) {
       for (const backendName of ingress.backends) {
-        const service = services.find((candidate) => candidate.name === backendName);
+        // An Ingress's backend Service is always in the Ingress's own namespace.
+        const service = services.find((s) => s.namespace === ingress.namespace && s.name === backendName);
         if (!service) continue;
         for (const resource of resources) {
-          if (WORKLOAD_KINDS.has(resource.kind) && selects(service.selector, resource.podLabels)) {
-            edges.push({ from: ingress.name, to: resource.name, label: "routes to" });
+          if (
+            WORKLOAD_KINDS.has(resource.kind) &&
+            resource.namespace === service.namespace &&
+            selects(service.selector, resource.podLabels)
+          ) {
+            edges.push({ from: id(ingress), to: id(resource), label: "routes to" });
           }
         }
       }

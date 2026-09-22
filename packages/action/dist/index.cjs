@@ -7457,23 +7457,33 @@ function parseResource(doc) {
     return void 0;
   }
   const kind = doc["kind"];
-  const name = child(doc, "metadata")?.["name"];
+  const metadata = child(doc, "metadata");
+  const name = metadata?.["name"];
   if (typeof name !== "string") return void 0;
+  const namespace = typeof metadata?.["namespace"] === "string" ? metadata["namespace"] : "default";
   const spec = child(doc, "spec") ?? {};
   if (kind === "Pod") {
-    return { kind, name, spec, podLabels: stringEntries(child(doc, "metadata")?.["labels"]), image: firstContainerImage(spec) };
+    return {
+      kind,
+      name,
+      namespace,
+      spec,
+      podLabels: stringEntries(metadata?.["labels"]),
+      image: firstContainerImage(spec)
+    };
   }
   if (WORKLOAD_KINDS.has(kind)) {
     const template = podTemplate(kind, spec);
     return {
       kind,
       name,
+      namespace,
       spec,
       podLabels: stringEntries(child(template, "metadata")?.["labels"]),
       image: firstContainerImage(child(template, "spec"))
     };
   }
-  return { kind, name, spec, podLabels: {}, image: void 0 };
+  return { kind, name, namespace, spec, podLabels: {}, image: void 0 };
 }
 function selects(selector, podLabels) {
   const keys = Object.keys(selector);
@@ -7501,33 +7511,38 @@ var kubernetesExtractor = {
   matches: (path) => /\.ya?ml$/.test(path),
   extract(file) {
     const resources = parseDocuments(file.content, file.path).map(parseResource).filter((resource) => resource !== void 0);
+    const id = (resource) => `${resource.namespace}/${resource.name}`;
     const nodes = [];
     const services = [];
     const ingresses = [];
     for (const resource of resources) {
       if (WORKLOAD_KINDS.has(resource.kind)) {
         nodes.push({
-          id: resource.name,
+          id: id(resource),
           name: resource.name,
           kind: classifyImage(resource.image),
           source: file.path,
           ...resource.image !== void 0 && { image: resource.image }
         });
       } else if (resource.kind === "Service") {
-        services.push({ name: resource.name, selector: stringEntries(resource.spec["selector"]) });
+        services.push({
+          namespace: resource.namespace,
+          name: resource.name,
+          selector: stringEntries(resource.spec["selector"])
+        });
       } else if (resource.kind === "Ingress") {
-        nodes.push({ id: resource.name, name: resource.name, kind: "service", source: file.path });
-        ingresses.push({ name: resource.name, backends: ingressBackends(resource.spec) });
+        nodes.push({ id: id(resource), name: resource.name, kind: "service", source: file.path });
+        ingresses.push({ namespace: resource.namespace, name: resource.name, backends: ingressBackends(resource.spec) });
       }
     }
     const edges = [];
     for (const ingress of ingresses) {
       for (const backendName of ingress.backends) {
-        const service = services.find((candidate) => candidate.name === backendName);
+        const service = services.find((s) => s.namespace === ingress.namespace && s.name === backendName);
         if (!service) continue;
         for (const resource of resources) {
-          if (WORKLOAD_KINDS.has(resource.kind) && selects(service.selector, resource.podLabels)) {
-            edges.push({ from: ingress.name, to: resource.name, label: "routes to" });
+          if (WORKLOAD_KINDS.has(resource.kind) && resource.namespace === service.namespace && selects(service.selector, resource.podLabels)) {
+            edges.push({ from: id(ingress), to: id(resource), label: "routes to" });
           }
         }
       }

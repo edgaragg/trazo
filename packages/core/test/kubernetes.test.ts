@@ -12,7 +12,7 @@ describe("kubernetesExtractor", () => {
     expect(kubernetesExtractor.matches(path)).toBe(false);
   });
 
-  it("turns a Deployment into a component classified by its image", () => {
+  it("turns a Deployment into a component classified by its image, scoped to the default namespace", () => {
     const model = kubernetesExtractor.extract(
       manifest(`
 apiVersion: apps/v1
@@ -31,9 +31,55 @@ spec:
     );
 
     expect(model.nodes).toEqual([
-      { id: "db", name: "db", kind: "database", source: "k8s/app.yaml", image: "postgres:16" },
+      { id: "default/db", name: "db", kind: "database", source: "k8s/app.yaml", image: "postgres:16" },
     ]);
     expect(model.edges).toEqual([]);
+  });
+
+  it("scopes the id to an explicit namespace instead of the default", () => {
+    const model = kubernetesExtractor.extract(
+      manifest(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: staging
+spec:
+  template:
+    spec:
+      containers: [{ image: acme/api:1.0 }]
+`),
+    );
+    expect(model.nodes[0]).toMatchObject({ id: "staging/api", name: "api" });
+  });
+
+  it("treats the same name in different namespaces as different components", () => {
+    const model = kubernetesExtractor.extract(
+      manifest(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: staging
+spec:
+  template:
+    spec:
+      containers: [{ image: acme/api:1.0-staging }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: production
+spec:
+  template:
+    spec:
+      containers: [{ image: acme/api:1.0 }]
+`),
+    );
+
+    expect(model.nodes.map((n) => n.id).sort()).toEqual(["production/api", "staging/api"]);
+    expect(model.nodes.map((n) => n.name)).toEqual(["api", "api"]);
   });
 
   it.each(["StatefulSet", "DaemonSet"])("reads a %s the same way as a Deployment", (kind) => {
@@ -50,7 +96,7 @@ spec:
         - image: redis:7
 `),
     );
-    expect(model.nodes[0]).toMatchObject({ id: "cache", kind: "cache", image: "redis:7" });
+    expect(model.nodes[0]).toMatchObject({ id: "default/cache", kind: "cache", image: "redis:7" });
   });
 
   it("reads a CronJob's image from its nested job template", () => {
@@ -69,7 +115,7 @@ spec:
             - image: ghcr.io/acme/cleanup:1.0
 `),
     );
-    expect(model.nodes[0]).toMatchObject({ id: "nightly-cleanup", kind: "service", image: "ghcr.io/acme/cleanup:1.0" });
+    expect(model.nodes[0]).toMatchObject({ id: "default/nightly-cleanup", image: "ghcr.io/acme/cleanup:1.0" });
   });
 
   it("reads a bare Pod's image and labels from its own spec, not a template", () => {
@@ -84,7 +130,7 @@ spec:
     - image: busybox:1.36
 `),
     );
-    expect(model.nodes[0]).toMatchObject({ id: "debug", image: "busybox:1.36" });
+    expect(model.nodes[0]).toMatchObject({ id: "default/debug", image: "busybox:1.36" });
   });
 
   it("ignores resources that are not workloads, Services or Ingresses", () => {
@@ -155,8 +201,8 @@ spec:
 `),
     );
 
-    expect(model.nodes.map((n) => n.id).sort()).toEqual(["api", "web"]);
-    expect(model.edges).toEqual([{ from: "web", to: "api", label: "routes to" }]);
+    expect(model.nodes.map((n) => n.id).sort()).toEqual(["default/api", "default/web"]);
+    expect(model.edges).toEqual([{ from: "default/web", to: "default/api", label: "routes to" }]);
   });
 
   it("also reads the legacy extensions/v1beta1 backend and defaultBackend shape", () => {
@@ -193,7 +239,7 @@ spec:
     servicePort: 80
 `),
     );
-    expect(model.edges).toEqual([{ from: "web", to: "api", label: "routes to" }]);
+    expect(model.edges).toEqual([{ from: "default/web", to: "default/api", label: "routes to" }]);
   });
 
   it("links to every workload a Service's selector matches", () => {
@@ -241,7 +287,7 @@ spec:
       name: api-svc
 `),
     );
-    expect(model.edges.map((e) => e.to).sort()).toEqual(["api-a", "api-b"]);
+    expect(model.edges.map((e) => e.to).sort()).toEqual(["default/api-a", "default/api-b"]);
   });
 
   it("does not link a Service with no selector, to avoid matching every workload", () => {
@@ -275,6 +321,84 @@ spec:
     expect(model.edges).toEqual([]);
   });
 
+  it("does not resolve a Service selecting a workload in a different namespace", () => {
+    const model = kubernetesExtractor.extract(
+      manifest(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: other-ns
+spec:
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers: [{ image: acme/api:1.0 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  namespace: default
+spec:
+  selector:
+    app: api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: default
+spec:
+  defaultBackend:
+    service:
+      name: api-svc
+`),
+    );
+    expect(model.edges).toEqual([]);
+  });
+
+  it("does not resolve an Ingress's backend to a same-named Service in a different namespace", () => {
+    const model = kubernetesExtractor.extract(
+      manifest(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: other-ns
+spec:
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers: [{ image: acme/api:1.0 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-svc
+  namespace: other-ns
+spec:
+  selector:
+    app: api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: default
+spec:
+  defaultBackend:
+    service:
+      name: api-svc
+`),
+    );
+    expect(model.edges).toEqual([]);
+  });
+
   it("drops an Ingress backend whose Service is not declared in the file", () => {
     const model = kubernetesExtractor.extract(
       manifest(`
@@ -288,7 +412,7 @@ spec:
       name: elsewhere-svc
 `),
     );
-    expect(model.nodes).toEqual([{ id: "web", name: "web", kind: "service", source: "k8s/app.yaml" }]);
+    expect(model.nodes).toEqual([{ id: "default/web", name: "web", kind: "service", source: "k8s/app.yaml" }]);
     expect(model.edges).toEqual([]);
   });
 
@@ -312,7 +436,7 @@ spec:
       containers: [{ image: y }]
 `),
     );
-    expect(model.nodes.map((n) => n.id)).toEqual(["a", "b"]);
+    expect(model.nodes.map((n) => n.id)).toEqual(["default/a", "default/b"]);
   });
 
   it("is a harmless no-op on YAML without a Kubernetes kind", () => {
@@ -382,7 +506,7 @@ spec:
 
     // A Service defined in a different file from the Ingress that references it cannot be
     // resolved by either single extract() call, so no edge is produced — a documented limit.
-    expect(model.nodes.map((n) => n.id).sort()).toEqual(["api", "web"]);
+    expect(model.nodes.map((n) => n.id).sort()).toEqual(["default/api", "default/web"]);
     expect(model.edges).toEqual([]);
   });
 });
