@@ -1,0 +1,43 @@
+name: Architecture doc
+
+# Keeps ARCHITECTURE.md a live snapshot of examples/basic, regenerated on every push to main.
+# The workflow's own commit re-triggers this event; the `github-actions[bot]` guard skips that
+# second run instead of relying on there being nothing left to commit.
+#
+# Trazo (the tool) has no infrastructure of its own, so this demonstrates the feature against
+# its example app instead of the repository root. Scanning the root would also merge the
+# Compose and Kubernetes examples into one model: both reuse generic names like "api" and "db",
+# so components with the same name in each would silently collapse into one — see the "Component
+# ids" limitation in the README.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run trazo -- generate examples/basic --format markdown --out ARCHITECTURE.md
+      - name: Commit ARCHITECTURE.md if it changed
+        run: |
+          if [ -z "$(git status --porcelain ARCHITECTURE.md)" ]; then
+            echo "ARCHITECTURE.md is already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ARCHITECTURE.md
+          git commit -m "docs: regenerate ARCHITECTURE.md"
+          git push
