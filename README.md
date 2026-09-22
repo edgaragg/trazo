@@ -121,7 +121,8 @@ files → extractor → architecture model → diff against base → Markdown re
 
 - [x] Docker Compose (`services`, `depends_on`, `links`)
 - [x] Kubernetes manifests (Deployment/StatefulSet/DaemonSet/Job/CronJob/Pod, Ingress → Service → workload)
-- [ ] CloudFormation / SAM templates
+- [ ] **Next up:** CloudFormation / SAM templates, including AWS Amplify backends — `amplify push` generates real CloudFormation under `amplify/backend/**/build/`, so the same extractor reads it; `amplify/backend/backend-config.json` would add the dependencies between resources (which function calls which table, which API calls which function) that raw CloudFormation alone doesn't declare
+- [ ] A richer ARCHITECTURE.md (components and dependencies are very bare today)
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
 
