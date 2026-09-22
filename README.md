@@ -2,7 +2,7 @@
 
 Architecture docs that can't go stale. Trazo extracts your system's structure from code and infrastructure files, generates Mermaid diagrams, and flags architecture changes on every pull request.
 
-> **Status: early.** It works end to end, but it only reads Docker Compose files for now. See the [roadmap](#roadmap).
+> **Status: early.** It works end to end and reads Docker Compose and Kubernetes manifests. See the [roadmap](#roadmap).
 
 ## Why
 
@@ -39,6 +39,8 @@ flowchart LR
 ```
 
 Databases, caches and queues are recognised from their image and drawn with their own shape.
+
+Trazo also reads Kubernetes manifests ([`examples/kubernetes/app.yaml`](examples/kubernetes/app.yaml)): Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Pods each become a component, and an Ingress is linked to the workload its backend Service selects.
 
 ## Usage
 
@@ -93,15 +95,16 @@ files → extractor → architecture model → diff against base → Markdown re
 ## Roadmap
 
 - [x] Docker Compose (`services`, `depends_on`, `links`)
-- [ ] Kubernetes manifests
+- [x] Kubernetes manifests (Deployment/StatefulSet/DaemonSet/Job/CronJob/Pod, Ingress → Service → workload)
 - [ ] CloudFormation / SAM templates
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
 
 ## Limitations
 
-- Only **declared** relationships are detected (`depends_on`, `links`). A service that finds its database through an environment variable is not linked to it.
-- Component ids come from service names. Two Compose files that define the same service name are merged into one component.
+- Only **declared** relationships are detected (`depends_on`, `links`, or an Ingress's backend Service). A service that finds its database through an environment variable is not linked to it, and raw Kubernetes manifests have no way to declare that one workload calls another.
+- Component ids come from service or resource names. Two files that define the same name are merged into one component.
+- A Kubernetes Ingress is only linked to a workload when the Service between them is declared in the *same file*; Trazo reads one file at a time, so a Service defined elsewhere can't be resolved.
 - The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token.
 
 ## Development

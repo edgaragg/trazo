@@ -1,30 +1,9 @@
 import { parse } from "yaml";
-import type { ArchEdge, ArchNode, NodeKind } from "../model.js";
+import type { ArchEdge, ArchNode } from "../model.js";
+import { classifyImage } from "./classify.js";
 import type { Extractor } from "./types.js";
 
 const COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
-
-// Matched against the image name without registry or tag, so `bitnami/kafka:3.7`
-// is tested as `kafka`. This is a heuristic: it only picks the diagram shape.
-const KIND_PATTERNS: ReadonlyArray<readonly [NodeKind, RegExp]> = [
-  [
-    "database",
-    /postgres|mysql|mariadb|mongo|elasticsearch|opensearch|clickhouse|cassandra|influxdb|couchdb/,
-  ],
-  ["cache", /redis|memcached|valkey|keydb/],
-  ["queue", /rabbitmq|kafka|nats|activemq|redpanda|pulsar/],
-];
-
-/**
- * Classifies a container image by the kind of component it usually runs.
- *
- * @returns `service` when the image is missing or not recognised.
- */
-function classifyImage(image: string | undefined): NodeKind {
-  if (!image) return "service";
-  const name = (image.split("/").pop() ?? image).split(/[:@]/)[0]?.toLowerCase() ?? "";
-  return KIND_PATTERNS.find(([, pattern]) => pattern.test(name))?.[0] ?? "service";
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
