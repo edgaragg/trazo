@@ -7,3 +7,4 @@ export type { ModelDiff } from "./diff.js";
 export { toMermaid } from "./mermaid.js";
 export type { MermaidOptions } from "./mermaid.js";
 export { renderDiffMarkdown, REPORT_MARKER } from "./report.js";
+export { renderArchitectureMarkdown, ARCHITECTURE_MARKER } from "./architecture-doc.js";

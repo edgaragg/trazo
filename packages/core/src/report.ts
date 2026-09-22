@@ -1,17 +1,13 @@
 import { isEmptyDiff, type ModelDiff } from "./diff.js";
+import { code, describeNode } from "./markdown.js";
 import { toMermaid } from "./mermaid.js";
-import type { ArchitectureModel, ArchNode } from "./model.js";
+import type { ArchitectureModel } from "./model.js";
 
 /**
  * Hidden marker placed at the top of every report. Integrations use it to find
  * their previous comment and update it instead of posting a new one.
  */
 export const REPORT_MARKER = "<!-- trazo-report -->";
-
-const code = (text: string) => `\`${text}\``;
-
-const describeNode = (node: ArchNode) =>
-  node.image ? `${code(node.name)} (${node.kind}, ${code(node.image)})` : `${code(node.name)} (${node.kind})`;
 
 function section(title: string, items: readonly string[]): string[] {
   return items.length === 0 ? [] : [`### ${title}`, "", ...items.map((item) => `- ${item}`), ""];

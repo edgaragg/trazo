@@ -71,12 +71,17 @@ Pull requests that don't touch the architecture stay quiet: no comment is posted
 ### As a command line tool
 
 ```bash
-trazo generate [dir]            # print the architecture as a Mermaid diagram
-trazo generate --format json    # ...or as JSON
-trazo diff --base main          # report what changed since a git revision
+trazo generate [dir]                                   # print the architecture as a Mermaid diagram
+trazo generate --format json                           # ...or as JSON
+trazo generate --format markdown --out ARCHITECTURE.md # ...or a full doc, written to a file
+trazo diff --base main                                 # report what changed since a git revision
 ```
 
 `trazo diff` reads the base revision straight from git, so it never touches your working tree.
+
+### Keeping a live ARCHITECTURE.md
+
+A file only stays trustworthy if nothing has to remember to update it. [`architecture-doc.yml`](.github/workflows/architecture-doc.yml) regenerates `ARCHITECTURE.md` on every push to `main` and commits it back when it changed — the same principle as the pull request comment, aimed at the repository itself instead of a review. Add it to your own repository, or copy the `trazo generate --format markdown --out ARCHITECTURE.md` step into an existing workflow.
 
 ## How it works
 
