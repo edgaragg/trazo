@@ -13,13 +13,15 @@ const SHAPES: Record<NodeKind, (label: string) => string> = {
   queue: (label) => `>"${label}"]`,
 };
 
-// Border colour per kind, on top of the shape each already has. Values are the first four
+// Border colour per kind, on top of the shape each already has. Strokes are the first four
 // slots of the project's validated categorical palette (blue/orange/aqua/yellow, in that fixed
 // order — see the dataviz skill), which pass its CVD and normal-vision checks against a light
-// surface. Only the border changes, not the fill: text inside stays Mermaid's default colour,
-// so legibility never depends on how a given hue reads under it. The colours are one static set
-// baked into the diagram, not adapted to the viewer's light/dark GitHub theme, since a rendered
-// Mermaid SVG can't detect that.
+// surface. Fills are those same hues lightened toward white (12% colour / 88% white — computed,
+// not eyeballed), so text always sits on a near-white background regardless of the hue: every
+// fill clears a 14.9:1 contrast ratio against #1a1a1a text, far past WCAG's 4.5:1 floor. The
+// colours are one static set baked into the diagram, not adapted to the viewer's light/dark
+// GitHub theme, since a rendered Mermaid SVG can't detect that — the light fills are what makes
+// that safe to do: a light box reads fine on either a light or a dark page.
 const KIND_ORDER: readonly NodeKind[] = ["service", "database", "cache", "queue"];
 const KIND_STROKE: Record<NodeKind, string> = {
   service: "#2a78d6",
@@ -27,6 +29,21 @@ const KIND_STROKE: Record<NodeKind, string> = {
   cache: "#1baf7a",
   queue: "#eda100",
 };
+const KIND_FILL: Record<NodeKind, string> = {
+  service: "#e5effa",
+  database: "#fdede7",
+  cache: "#e4f5ef",
+  queue: "#fdf4e0",
+};
+const TEXT_COLOR = "#1a1a1a";
+const ADDED_STROKE = "#2da44e";
+const ADDED_FILL = "#e6f4ea";
+// Mermaid's "base" theme is the one meant to be built on top of, and GitHub respects the
+// directive that selects it. Its own default line colour is too dark to read on a dark page,
+// so it's overridden here too — confirmed by rendering the diagram against both a light and a
+// dark page, not assumed: an earlier attempt at "base" alone (no fill, no lineColor) left edges
+// and unfilled shapes nearly invisible on dark.
+const INIT_DIRECTIVE = `%%{init: {'theme':'base','themeVariables':{'lineColor':'#6b7280'}}}%%`;
 
 const LABEL_ENTITIES: Record<string, string> = { '"': "#quot;", "<": "#lt;", ">": "#gt;" };
 
@@ -68,13 +85,7 @@ function assignIds(nodes: readonly ArchNode[]): Map<string, string> {
  */
 export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}): string {
   const ids = assignIds(model.nodes);
-  // No `%%{init: {theme: ...}}%%` directive: tried pinning the "base" theme, since GitHub
-  // respects it and classDef already overrides its colours anyway, but on a dark page it left
-  // the cylinder/stadium/flag shapes and edges nearly invisible (no fill of their own, and
-  // base's default text/line colour is too dark to read on a dark surface) — confirmed by
-  // rendering it, not assumed. Leaving the theme unset renders correctly on both a light and a
-  // dark page, which matters since the same static diagram has to work on either.
-  const lines = ["flowchart LR"];
+  const lines = [INIT_DIRECTIVE, "flowchart LR"];
 
   for (const node of model.nodes) {
     lines.push(`  ${ids.get(node.id)}${SHAPES[node.kind](escapeLabel(node.name))}`);
@@ -95,13 +106,15 @@ export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}
       .filter((node) => node.kind === kind && !addedIds.has(node.id))
       .flatMap((node) => ids.get(node.id) ?? []);
     if (kindIds.length === 0) continue;
-    lines.push(`  classDef kind_${kind} stroke:${KIND_STROKE[kind]},stroke-width:2px`);
+    lines.push(
+      `  classDef kind_${kind} fill:${KIND_FILL[kind]},stroke:${KIND_STROKE[kind]},stroke-width:2px,color:${TEXT_COLOR}`,
+    );
     lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
   }
 
   const added = [...addedIds].flatMap((id) => ids.get(id) ?? []);
   if (added.length > 0) {
-    lines.push("  classDef added stroke:#2da44e,stroke-width:3px");
+    lines.push(`  classDef added fill:${ADDED_FILL},stroke:${ADDED_STROKE},stroke-width:3px,color:${TEXT_COLOR}`);
     lines.push(`  class ${added.join(",")} added`);
   }
   return lines.join("\n");

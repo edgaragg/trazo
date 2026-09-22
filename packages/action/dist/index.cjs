@@ -7611,6 +7611,16 @@ var KIND_STROKE = {
   cache: "#1baf7a",
   queue: "#eda100"
 };
+var KIND_FILL = {
+  service: "#e5effa",
+  database: "#fdede7",
+  cache: "#e4f5ef",
+  queue: "#fdf4e0"
+};
+var TEXT_COLOR = "#1a1a1a";
+var ADDED_STROKE = "#2da44e";
+var ADDED_FILL = "#e6f4ea";
+var INIT_DIRECTIVE = `%%{init: {'theme':'base','themeVariables':{'lineColor':'#6b7280'}}}%%`;
 var LABEL_ENTITIES = { '"': "#quot;", "<": "#lt;", ">": "#gt;" };
 var escapeLabel = (text) => text.replace(/["<>]/g, (char) => LABEL_ENTITIES[char] ?? char);
 function assignIds(nodes) {
@@ -7627,7 +7637,7 @@ function assignIds(nodes) {
 }
 function toMermaid(model, options = {}) {
   const ids = assignIds(model.nodes);
-  const lines = ["flowchart LR"];
+  const lines = [INIT_DIRECTIVE, "flowchart LR"];
   for (const node of model.nodes) {
     lines.push(`  ${ids.get(node.id)}${SHAPES[node.kind](escapeLabel(node.name))}`);
   }
@@ -7640,12 +7650,14 @@ function toMermaid(model, options = {}) {
   for (const kind of KIND_ORDER) {
     const kindIds = model.nodes.filter((node) => node.kind === kind && !addedIds.has(node.id)).flatMap((node) => ids.get(node.id) ?? []);
     if (kindIds.length === 0) continue;
-    lines.push(`  classDef kind_${kind} stroke:${KIND_STROKE[kind]},stroke-width:2px`);
+    lines.push(
+      `  classDef kind_${kind} fill:${KIND_FILL[kind]},stroke:${KIND_STROKE[kind]},stroke-width:2px,color:${TEXT_COLOR}`
+    );
     lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
   }
   const added = [...addedIds].flatMap((id) => ids.get(id) ?? []);
   if (added.length > 0) {
-    lines.push("  classDef added stroke:#2da44e,stroke-width:3px");
+    lines.push(`  classDef added fill:${ADDED_FILL},stroke:${ADDED_STROKE},stroke-width:3px,color:${TEXT_COLOR}`);
     lines.push(`  class ${added.join(",")} added`);
   }
   return lines.join("\n");
