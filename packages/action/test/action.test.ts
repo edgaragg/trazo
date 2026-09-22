@@ -160,6 +160,24 @@ describe("runAction", () => {
     expect(github.comments[0]?.body).toContain("No architecture changes detected.");
   });
 
+  it("reports every component when the pull request introduces the first compose file", async () => {
+    // The base holds no compose file at all, so its tree is empty.
+    git("rm", "-q", COMPOSE);
+    git("commit", "-q", "-m", "remove compose");
+    const emptyBase = git("rev-parse", "HEAD");
+    setCompose(WITH_CACHE);
+    await runAction(actionEnv(writeEvent(pullRequestEvent(emptyBase))), () => {});
+
+    const body = github.comments[0]?.body ?? "";
+    expect(github.comments).toHaveLength(1);
+    expect(body).toContain("### Added components");
+    expect(body).toContain("`api`");
+    expect(body).toContain("`cache` (cache, `redis:7`)");
+    expect(body).toContain("`api` → `cache`");
+    expect(body).toContain("```mermaid");
+    expect(body).not.toContain("No architecture changes");
+  });
+
   it("ignores comments that are not its own", async () => {
     github.comments.push({ id: 1, body: "LGTM" });
     setCompose(WITH_CACHE);

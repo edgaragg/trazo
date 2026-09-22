@@ -95,6 +95,34 @@ describe("trazo diff", () => {
     expect(out).toContain("`api` → `cache`");
   });
 
+  it("reports every component as added when the base has no compose file", () => {
+    git("init", "-q", "-b", "main");
+    write("README.md", "# nothing to see\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "base");
+
+    write("docker-compose.yml", "services:\n  api:\n    depends_on: [db]\n  db:\n    image: postgres:16\n");
+    const { code, out } = cli("diff", "--base", "main");
+
+    expect(code).toBe(0);
+    expect(out).toContain("### Added components");
+    expect(out).toContain("`api`");
+    expect(out).toContain("`db` (database, `postgres:16`)");
+    expect(out).toContain("`api` → `db`");
+    expect(out).not.toContain("Removed");
+  });
+
+  it("reports every component as added when the base commit is empty", () => {
+    git("init", "-q", "-b", "main");
+    git("commit", "-q", "--allow-empty", "-m", "empty base");
+
+    write("docker-compose.yml", "services:\n  api: {}\n");
+    const { code, out } = cli("diff", "--base", "main");
+
+    expect(code).toBe(0);
+    expect(out).toContain("`api`");
+  });
+
   it("requires --base", () => {
     const { code, err } = cli("diff");
 
