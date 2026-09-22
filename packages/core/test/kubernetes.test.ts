@@ -133,6 +133,30 @@ spec:
     expect(model.nodes[0]).toMatchObject({ id: "default/debug", image: "busybox:1.36" });
   });
 
+  it("ignores Secrets and ConfigMaps: they hold configuration, not a running component", () => {
+    const model = kubernetesExtractor.extract(
+      manifest(`
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-credentials
+type: Opaque
+data:
+  password: cGxhY2Vob2xkZXI=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  template:
+    spec:
+      containers: [{ image: acme/api:1.0 }]
+`),
+    );
+    expect(model.nodes.map((n) => n.id)).toEqual(["default/api"]);
+  });
+
   it("ignores resources that are not workloads, Services or Ingresses", () => {
     const model = kubernetesExtractor.extract(
       manifest(`
