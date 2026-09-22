@@ -1,6 +1,12 @@
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { diffModels, extractModel, renderDiffMarkdown, toMermaid } from "@trazo/core";
+import {
+  diffModels,
+  extractModel,
+  renderArchitectureMarkdown,
+  renderDiffMarkdown,
+  toMermaid,
+} from "@trazo/core";
 import { collectAtRef, collectWorkingTree } from "./sources.js";
 
 /** Where the CLI reads its context from and writes its output to. Injected so it can be tested. */
@@ -9,6 +15,8 @@ export interface CliEnvironment {
   cwd: string;
   out(text: string): void;
   err(text: string): void;
+  /** Writes a file for `--out`. `path` is resolved against `cwd` before this is called. */
+  writeFile(path: string, content: string): void;
 }
 
 const HELP = `trazo - keep your architecture diagrams honest
@@ -19,11 +27,12 @@ Usage:
 
 Options:
   -b, --base <ref>     Git revision to compare against (diff only)
-  -f, --format <name>  generate: mermaid | json (default mermaid)
+  -f, --format <name>  generate: mermaid | json | markdown (default mermaid)
                        diff: markdown | json (default markdown)
+  -o, --out <path>     Write the output to a file instead of stdout (generate only)
   -h, --help           Show this help
 
-Supported files: docker-compose.yml / compose.yaml`;
+See the README for the list of supported infrastructure files.`;
 
 /**
  * Runs the command line interface.
@@ -43,6 +52,7 @@ export function run(argv: readonly string[], env: CliEnvironment): number {
       options: {
         base: { type: "string", short: "b" },
         format: { type: "string", short: "f" },
+        out: { type: "string", short: "o" },
         help: { type: "boolean", short: "h" },
       },
     });
@@ -57,16 +67,28 @@ export function run(argv: readonly string[], env: CliEnvironment): number {
     const format = values.format;
 
     if (command === "generate") {
-      if (format !== undefined && format !== "mermaid" && format !== "json") {
-        env.err(`trazo: unknown format "${format}" for generate (use mermaid or json).`);
+      if (format !== undefined && format !== "mermaid" && format !== "json" && format !== "markdown") {
+        env.err(`trazo: unknown format "${format}" for generate (use mermaid, json or markdown).`);
         return 1;
       }
       const model = extractModel(collectWorkingTree(root));
-      if (model.nodes.length === 0) {
-        env.err("trazo: no supported files found (looked for docker-compose.yml / compose.yaml).");
+      // Without --out this is an interactive/CI check, so an empty result is treated as a
+      // mistake. With --out this is usually unattended (regenerating a committed doc on every
+      // push), where a repository legitimately having no infrastructure files yet should not
+      // fail the job — the file is written showing that, instead.
+      if (model.nodes.length === 0 && !values.out) {
+        env.err("trazo: no supported infrastructure files found.");
         return 1;
       }
-      env.out(format === "json" ? JSON.stringify(model, null, 2) : toMermaid(model));
+      const rendered =
+        format === "json" ? JSON.stringify(model, null, 2)
+        : format === "markdown" ? renderArchitectureMarkdown(model)
+        : toMermaid(model);
+      if (values.out) {
+        env.writeFile(resolve(env.cwd, values.out), rendered);
+      } else {
+        env.out(rendered);
+      }
       return 0;
     }
 
