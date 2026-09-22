@@ -7222,7 +7222,7 @@ var require_public_api = __commonJS({
       const lineCounter$1 = options.lineCounter || prettyErrors && new lineCounter.LineCounter() || null;
       return { lineCounter: lineCounter$1, prettyErrors };
     }
-    function parseAllDocuments(source, options = {}) {
+    function parseAllDocuments2(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -7297,7 +7297,7 @@ var require_public_api = __commonJS({
       return new Document.Document(value, _replacer, options).toString(options);
     }
     exports2.parse = parse2;
-    exports2.parseAllDocuments = parseAllDocuments;
+    exports2.parseAllDocuments = parseAllDocuments2;
     exports2.parseDocument = parseDocument;
     exports2.stringify = stringify;
   }
@@ -7360,7 +7360,7 @@ var import_node_fs = require("fs");
 
 // ../core/dist/index.js
 var import_yaml = __toESM(require_dist(), 1);
-var COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
+var import_yaml2 = __toESM(require_dist(), 1);
 var KIND_PATTERNS = [
   [
     "database",
@@ -7374,6 +7374,7 @@ function classifyImage(image) {
   const name = (image.split("/").pop() ?? image).split(/[:@]/)[0]?.toLowerCase() ?? "";
   return KIND_PATTERNS.find(([, pattern]) => pattern.test(name))?.[0] ?? "service";
 }
+var COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -7422,7 +7423,119 @@ var dockerComposeExtractor = {
     return { nodes, edges };
   }
 };
-var defaultExtractors = [dockerComposeExtractor];
+var WORKLOAD_KINDS = /* @__PURE__ */ new Set(["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"]);
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function child(parent, key) {
+  const value = parent?.[key];
+  return isRecord2(value) ? value : void 0;
+}
+function stringEntries(value) {
+  if (!isRecord2(value)) return {};
+  const map = {};
+  for (const [key, v] of Object.entries(value)) if (typeof v === "string") map[key] = v;
+  return map;
+}
+function parseDocuments(content, path) {
+  const documents = (0, import_yaml2.parseAllDocuments)(content);
+  const error = documents.flatMap((doc) => doc.errors)[0];
+  if (error) throw new Error(`Invalid YAML in ${path}: ${error.message.split("\n")[0]}`);
+  return documents.map((doc) => doc.toJS()).filter((doc) => doc !== null && doc !== void 0);
+}
+function firstContainerImage(spec) {
+  const containers = spec?.["containers"];
+  const first = Array.isArray(containers) ? containers[0] : void 0;
+  return isRecord2(first) && typeof first["image"] === "string" ? first["image"] : void 0;
+}
+function podTemplate(kind, spec) {
+  if (kind === "CronJob") return child(child(child(spec, "jobTemplate"), "spec"), "template");
+  return child(spec, "template");
+}
+function parseResource(doc) {
+  if (!isRecord2(doc) || typeof doc["apiVersion"] !== "string" || typeof doc["kind"] !== "string") {
+    return void 0;
+  }
+  const kind = doc["kind"];
+  const name = child(doc, "metadata")?.["name"];
+  if (typeof name !== "string") return void 0;
+  const spec = child(doc, "spec") ?? {};
+  if (kind === "Pod") {
+    return { kind, name, spec, podLabels: stringEntries(child(doc, "metadata")?.["labels"]), image: firstContainerImage(spec) };
+  }
+  if (WORKLOAD_KINDS.has(kind)) {
+    const template = podTemplate(kind, spec);
+    return {
+      kind,
+      name,
+      spec,
+      podLabels: stringEntries(child(template, "metadata")?.["labels"]),
+      image: firstContainerImage(child(template, "spec"))
+    };
+  }
+  return { kind, name, spec, podLabels: {}, image: void 0 };
+}
+function selects(selector, podLabels) {
+  const keys = Object.keys(selector);
+  return keys.length > 0 && keys.every((key) => podLabels[key] === selector[key]);
+}
+function ingressBackends(spec) {
+  const names = [];
+  const addBackend = (backend) => {
+    if (!isRecord2(backend)) return;
+    const name = child(backend, "service")?.["name"] ?? backend["serviceName"];
+    if (typeof name === "string") names.push(name);
+  };
+  addBackend(spec["backend"]);
+  addBackend(spec["defaultBackend"]);
+  for (const rule of Array.isArray(spec["rules"]) ? spec["rules"] : []) {
+    const paths = child(rule, "http")?.["paths"];
+    for (const path of Array.isArray(paths) ? paths : []) {
+      if (isRecord2(path)) addBackend(path["backend"]);
+    }
+  }
+  return names;
+}
+var kubernetesExtractor = {
+  name: "kubernetes",
+  matches: (path) => /\.ya?ml$/.test(path),
+  extract(file) {
+    const resources = parseDocuments(file.content, file.path).map(parseResource).filter((resource) => resource !== void 0);
+    const nodes = [];
+    const services = [];
+    const ingresses = [];
+    for (const resource of resources) {
+      if (WORKLOAD_KINDS.has(resource.kind)) {
+        nodes.push({
+          id: resource.name,
+          name: resource.name,
+          kind: classifyImage(resource.image),
+          source: file.path,
+          ...resource.image !== void 0 && { image: resource.image }
+        });
+      } else if (resource.kind === "Service") {
+        services.push({ name: resource.name, selector: stringEntries(resource.spec["selector"]) });
+      } else if (resource.kind === "Ingress") {
+        nodes.push({ id: resource.name, name: resource.name, kind: "service", source: file.path });
+        ingresses.push({ name: resource.name, backends: ingressBackends(resource.spec) });
+      }
+    }
+    const edges = [];
+    for (const ingress of ingresses) {
+      for (const backendName of ingress.backends) {
+        const service = services.find((candidate) => candidate.name === backendName);
+        if (!service) continue;
+        for (const resource of resources) {
+          if (WORKLOAD_KINDS.has(resource.kind) && selects(service.selector, resource.podLabels)) {
+            edges.push({ from: ingress.name, to: resource.name, label: "routes to" });
+          }
+        }
+      }
+    }
+    return { nodes, edges };
+  }
+};
+var defaultExtractors = [dockerComposeExtractor, kubernetesExtractor];
 var byId = (a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 var edgeKey = (edge) => `${edge.from}\0${edge.to}`;
 var byEdge = (a, b) => {
