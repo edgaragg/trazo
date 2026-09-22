@@ -7604,6 +7604,13 @@ var SHAPES = {
   cache: (label) => `(["${label}"])`,
   queue: (label) => `>"${label}"]`
 };
+var KIND_ORDER = ["service", "database", "cache", "queue"];
+var KIND_STROKE = {
+  service: "#2a78d6",
+  database: "#eb6834",
+  cache: "#1baf7a",
+  queue: "#eda100"
+};
 var LABEL_ENTITIES = { '"': "#quot;", "<": "#lt;", ">": "#gt;" };
 var escapeLabel = (text) => text.replace(/["<>]/g, (char) => LABEL_ENTITIES[char] ?? char);
 function assignIds(nodes) {
@@ -7629,7 +7636,14 @@ function toMermaid(model, options = {}) {
     const to = ids.get(edge.to);
     if (from && to) lines.push(`  ${from} --> ${to}`);
   }
-  const added = [...options.added ?? []].flatMap((id) => ids.get(id) ?? []);
+  const addedIds = new Set(options.added ?? []);
+  for (const kind of KIND_ORDER) {
+    const kindIds = model.nodes.filter((node) => node.kind === kind && !addedIds.has(node.id)).flatMap((node) => ids.get(node.id) ?? []);
+    if (kindIds.length === 0) continue;
+    lines.push(`  classDef kind_${kind} stroke:${KIND_STROKE[kind]},stroke-width:2px`);
+    lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
+  }
+  const added = [...addedIds].flatMap((id) => ids.get(id) ?? []);
   if (added.length > 0) {
     lines.push("  classDef added stroke:#2da44e,stroke-width:3px");
     lines.push(`  class ${added.join(",")} added`);

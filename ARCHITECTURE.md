@@ -17,6 +17,14 @@ flowchart LR
   n_web --> n_api
   n_worker --> n_db
   n_worker --> n_queue
+  classDef kind_service stroke:#2a78d6,stroke-width:2px
+  class n_api,n_web,n_worker kind_service
+  classDef kind_database stroke:#eb6834,stroke-width:2px
+  class n_db kind_database
+  classDef kind_cache stroke:#1baf7a,stroke-width:2px
+  class n_cache kind_cache
+  classDef kind_queue stroke:#eda100,stroke-width:2px
+  class n_queue kind_queue
 ```
 
 ## Components

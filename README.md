@@ -36,9 +36,17 @@ flowchart LR
   n_web --> n_api
   n_worker --> n_db
   n_worker --> n_queue
+  classDef kind_service stroke:#2a78d6,stroke-width:2px
+  class n_api,n_web,n_worker kind_service
+  classDef kind_database stroke:#eb6834,stroke-width:2px
+  class n_db kind_database
+  classDef kind_cache stroke:#1baf7a,stroke-width:2px
+  class n_cache kind_cache
+  classDef kind_queue stroke:#eda100,stroke-width:2px
+  class n_queue kind_queue
 ```
 
-Databases, caches and queues are recognised from their image and drawn with their own shape.
+Databases, caches and queues are recognised from their image and drawn with their own shape and border colour (blue services, orange databases, teal caches, yellow queues) — a component added by a pull request is bordered green instead, taking priority over its kind's colour.
 
 Trazo also reads Kubernetes manifests ([`examples/kubernetes/app.yaml`](examples/kubernetes/app.yaml)): Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Pods each become a component, and an Ingress is linked to the workload its backend Service selects.
 
