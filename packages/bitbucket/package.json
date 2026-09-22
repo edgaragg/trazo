@@ -1,0 +1,24 @@
+{
+  "name": "@trazo/bitbucket",
+  "version": "0.0.0",
+  "description": "Report architecture changes on Bitbucket pull requests, from a Bitbucket Pipelines step.",
+  "license": "MIT",
+  "author": "Edgar González",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edgaragg/trazo.git",
+    "directory": "packages/bitbucket"
+  },
+  "type": "module",
+  "bin": {
+    "trazo-bitbucket": "./dist/bin.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/comment.ts src/bin.ts --format esm --dts --clean"
+  },
+  "dependencies": {
+    "@trazo/core": "*",
+    "trazo": "*"
+  }
+}

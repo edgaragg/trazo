@@ -68,6 +68,25 @@ jobs:
 
 Pull requests that don't touch the architecture stay quiet: no comment is posted.
 
+### As a Bitbucket Pipelines step
+
+Add a pull-request pipeline. It behaves exactly like the GitHub Action: quiet when nothing changed, one comment kept up to date otherwise.
+
+```yaml
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: Architecture
+          image: node:22
+          clone:
+            depth: full # Trazo compares against the destination revision, so it needs history.
+          script:
+            - npx --package=@trazo/bitbucket trazo-bitbucket
+```
+
+Unlike GitHub Actions, Bitbucket doesn't hand a pipeline a token that can write to pull requests, so add one yourself: a [Repository Access Token](https://support.atlassian.com/bitbucket-cloud/docs/repository-access-tokens/) with the `pullrequest:write` permission, saved as a secured repository variable named `TRAZO_BITBUCKET_TOKEN` (Repository settings → Pipelines → Repository variables).
+
 ### As a command line tool
 
 ```bash
@@ -92,6 +111,7 @@ The repository is a small monorepo:
 | [`@trazo/core`](packages/core) | The logic: extractors that read files into a model, model diffing, Mermaid and Markdown rendering. It never touches the filesystem, so it is easy to test and reuse. |
 | [`trazo`](packages/cli) | The command line. Finds files, reads them from disk or from git, and calls core. |
 | [`@trazo/action`](packages/action) | The GitHub Action. A thin layer over the CLI that posts the comment. |
+| [`@trazo/bitbucket`](packages/bitbucket) | The Bitbucket Pipelines step. The same thin layer, aimed at Bitbucket's API instead of GitHub's. |
 
 ```
 files → extractor → architecture model → diff against base → Markdown report + Mermaid diagram
@@ -110,7 +130,7 @@ files → extractor → architecture model → diff against base → Markdown re
 - Only **declared** relationships are detected (`depends_on`, `links`, or an Ingress's backend Service). A service that finds its database through an environment variable is not linked to it, and raw Kubernetes manifests have no way to declare that one workload calls another.
 - Docker Compose component ids come from the service name; two Compose files that define the same service name are merged into one component. Kubernetes ids are scoped to their namespace (`namespace/name`, defaulting to `default`), so the same resource name in different namespaces stays separate — but both are still drawn with just their bare name, so two same-named components from different namespaces look identical on a diagram that shows more than one namespace at once.
 - A Kubernetes Service only selects workloads, and an Ingress only resolves a Service, within its own namespace — matching real Kubernetes behaviour — and only when they are declared in the *same file*; Trazo reads one file at a time, so a Service defined elsewhere can't be resolved.
-- The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token.
+- The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token. Bitbucket Pipelines has the same kind of gap from the other direction: by default it doesn't run a pull-request pipeline at all for a pull request opened from a fork, so `@trazo/bitbucket` never runs on those either.
 
 ## Development
 
