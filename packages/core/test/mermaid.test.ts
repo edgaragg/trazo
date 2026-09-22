@@ -21,6 +21,7 @@ describe("toMermaid", () => {
 
     expect(toMermaid(model)).toBe(
       [
+        "%%{init: {'theme':'base','themeVariables':{'lineColor':'#6b7280'}}}%%",
         "flowchart LR",
         '  n_web["web"]',
         '  n_db[("db")]',
@@ -29,13 +30,13 @@ describe("toMermaid", () => {
         "  n_web --> n_db",
         "  n_web --> n_cache",
         "  n_web --> n_queue",
-        "  classDef kind_service stroke:#2a78d6,stroke-width:2px",
+        "  classDef kind_service fill:#e5effa,stroke:#2a78d6,stroke-width:2px,color:#1a1a1a",
         "  class n_web kind_service",
-        "  classDef kind_database stroke:#eb6834,stroke-width:2px",
+        "  classDef kind_database fill:#fdede7,stroke:#eb6834,stroke-width:2px,color:#1a1a1a",
         "  class n_db kind_database",
-        "  classDef kind_cache stroke:#1baf7a,stroke-width:2px",
+        "  classDef kind_cache fill:#e4f5ef,stroke:#1baf7a,stroke-width:2px,color:#1a1a1a",
         "  class n_cache kind_cache",
-        "  classDef kind_queue stroke:#eda100,stroke-width:2px",
+        "  classDef kind_queue fill:#fdf4e0,stroke:#eda100,stroke-width:2px,color:#1a1a1a",
         "  class n_queue kind_queue",
       ].join("\n"),
     );
@@ -49,7 +50,7 @@ describe("toMermaid", () => {
       ],
       edges: [],
     });
-    expect(output).toContain("classDef kind_service stroke:#2a78d6,stroke-width:2px");
+    expect(output).toContain("classDef kind_service fill:#e5effa,stroke:#2a78d6,stroke-width:2px,color:#1a1a1a");
     expect(output).toContain("class n_a,n_b kind_service");
     // One classDef per kind, not one per node.
     expect(output.match(/classDef kind_service/g)).toHaveLength(1);
@@ -74,7 +75,8 @@ describe("toMermaid", () => {
     );
     // "a" is added: no kind_database class for it, only "added".
     expect(output).toContain("class n_a added");
-    expect(output).not.toContain("kind_database stroke:#eb6834,stroke-width:2px\n  class n_a");
+    const kindDatabaseClassLine = output.split("\n").find((line) => line.endsWith("kind_database"));
+    expect(kindDatabaseClassLine).not.toContain("n_a");
     // "b" is unaffected: still coloured by kind, and still a cylinder.
     expect(output).toContain('n_b[("b")]');
     expect(output).toContain("class n_b kind_database");

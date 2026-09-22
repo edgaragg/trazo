@@ -23,6 +23,7 @@ node packages/cli/dist/bin.js generate examples/basic
 ```
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'lineColor':'#6b7280'}}}%%
 flowchart LR
   n_api["api"]
   n_cache(["cache"])
@@ -36,13 +37,13 @@ flowchart LR
   n_web --> n_api
   n_worker --> n_db
   n_worker --> n_queue
-  classDef kind_service stroke:#2a78d6,stroke-width:2px
+  classDef kind_service fill:#e5effa,stroke:#2a78d6,stroke-width:2px,color:#1a1a1a
   class n_api,n_web,n_worker kind_service
-  classDef kind_database stroke:#eb6834,stroke-width:2px
+  classDef kind_database fill:#fdede7,stroke:#eb6834,stroke-width:2px,color:#1a1a1a
   class n_db kind_database
-  classDef kind_cache stroke:#1baf7a,stroke-width:2px
+  classDef kind_cache fill:#e4f5ef,stroke:#1baf7a,stroke-width:2px,color:#1a1a1a
   class n_cache kind_cache
-  classDef kind_queue stroke:#eda100,stroke-width:2px
+  classDef kind_queue fill:#fdf4e0,stroke:#eda100,stroke-width:2px,color:#1a1a1a
   class n_queue kind_queue
 ```
 
