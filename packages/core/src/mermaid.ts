@@ -68,6 +68,12 @@ function assignIds(nodes: readonly ArchNode[]): Map<string, string> {
  */
 export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}): string {
   const ids = assignIds(model.nodes);
+  // No `%%{init: {theme: ...}}%%` directive: tried pinning the "base" theme, since GitHub
+  // respects it and classDef already overrides its colours anyway, but on a dark page it left
+  // the cylinder/stadium/flag shapes and edges nearly invisible (no fill of their own, and
+  // base's default text/line colour is too dark to read on a dark surface) — confirmed by
+  // rendering it, not assumed. Leaving the theme unset renders correctly on both a light and a
+  // dark page, which matters since the same static diagram has to work on either.
   const lines = ["flowchart LR"];
 
   for (const node of model.nodes) {
