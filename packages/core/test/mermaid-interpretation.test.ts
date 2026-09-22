@@ -150,6 +150,23 @@ describe("Mermaid understands what toMermaid produces", () => {
     expect(vertices.find((vertex) => vertex.text === "b")?.classes).not.toContain("added");
   });
 
+  it.each(Object.keys(SHAPE) as NodeKind[])("classes a %s with its own kind_%s class", async (kind) => {
+    const { vertices } = await interpret(toMermaid(model(["a", "b"], kind)));
+
+    for (const vertex of vertices) expect(vertex.classes).toEqual([`kind_${kind}`]);
+  });
+
+  it("classes an added component as added instead of by its kind", async () => {
+    const { vertices } = await interpret(
+      toMermaid(model(["a", "b"], "database"), { added: new Set(["a"]) }),
+    );
+
+    const a = vertices.find((vertex) => vertex.text === "a");
+    const b = vertices.find((vertex) => vertex.text === "b");
+    expect(a?.classes).toEqual(["added"]);
+    expect(b?.classes).toEqual(["kind_database"]);
+  });
+
   it("understands the diagram inside a diff report", async () => {
     const before = extractModel([{ path: source, content: "services:\n  api: {}\n" }]);
     const after = extractModel([

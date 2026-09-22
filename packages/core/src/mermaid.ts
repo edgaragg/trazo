@@ -13,6 +13,21 @@ const SHAPES: Record<NodeKind, (label: string) => string> = {
   queue: (label) => `>"${label}"]`,
 };
 
+// Border colour per kind, on top of the shape each already has. Values are the first four
+// slots of the project's validated categorical palette (blue/orange/aqua/yellow, in that fixed
+// order — see the dataviz skill), which pass its CVD and normal-vision checks against a light
+// surface. Only the border changes, not the fill: text inside stays Mermaid's default colour,
+// so legibility never depends on how a given hue reads under it. The colours are one static set
+// baked into the diagram, not adapted to the viewer's light/dark GitHub theme, since a rendered
+// Mermaid SVG can't detect that.
+const KIND_ORDER: readonly NodeKind[] = ["service", "database", "cache", "queue"];
+const KIND_STROKE: Record<NodeKind, string> = {
+  service: "#2a78d6",
+  database: "#eb6834",
+  cache: "#1baf7a",
+  queue: "#eda100",
+};
+
 const LABEL_ENTITIES: Record<string, string> = { '"': "#quot;", "<": "#lt;", ">": "#gt;" };
 
 /**
@@ -43,7 +58,11 @@ function assignIds(nodes: readonly ArchNode[]): Map<string, string> {
 /**
  * Renders a model as a Mermaid `flowchart`, which GitHub draws natively in
  * Markdown. Databases are cylinders, caches are stadiums and queues use the
- * asymmetric flag shape. The output is stable for equal models.
+ * asymmetric flag shape, each also bordered in its own colour. The output is
+ * stable for equal models.
+ *
+ * A component in `options.added` is bordered green instead of its kind's colour — being new
+ * is the more useful signal in a diff, so it takes priority; the shape still shows its kind.
  *
  * @param model - Model to draw. Dependencies pointing at unknown components are skipped.
  */
@@ -60,7 +79,21 @@ export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}
     if (from && to) lines.push(`  ${from} --> ${to}`);
   }
 
-  const added = [...(options.added ?? [])].flatMap((id) => ids.get(id) ?? []);
+  const addedIds = new Set(options.added ?? []);
+
+  // A node gets exactly one class: "added" wins over its kind's colour, so the two classDefs
+  // never have to be merged on the same node — Mermaid's rule for combining two classes on one
+  // node isn't something to depend on when a single, unambiguous style says the same thing.
+  for (const kind of KIND_ORDER) {
+    const kindIds = model.nodes
+      .filter((node) => node.kind === kind && !addedIds.has(node.id))
+      .flatMap((node) => ids.get(node.id) ?? []);
+    if (kindIds.length === 0) continue;
+    lines.push(`  classDef kind_${kind} stroke:${KIND_STROKE[kind]},stroke-width:2px`);
+    lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
+  }
+
+  const added = [...addedIds].flatMap((id) => ids.get(id) ?? []);
   if (added.length > 0) {
     lines.push("  classDef added stroke:#2da44e,stroke-width:3px");
     lines.push(`  class ${added.join(",")} added`);
