@@ -133,6 +133,7 @@ files → extractor → architecture model → diff against base → Markdown re
 - [ ] A richer ARCHITECTURE.md (components and dependencies are very bare today)
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
+- [ ] A `.trazoignore` file (and/or a CLI `--exclude` flag) to skip specific paths, for files that are illustrative rather than real — a Kubernetes manifest kept purely as a documentation example, for instance. Not solved by guessing from a filename or folder convention like `*.example.yaml`: that always misclassifies someone's setup in one direction or the other. An explicit, deterministic list of paths to skip stays true to "the diagram can't invent things that aren't there" — it also does not invent what to leave out.
 
 ## Limitations
 
