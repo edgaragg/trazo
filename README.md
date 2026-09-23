@@ -213,24 +213,6 @@ The Action ships as a committed bundle (`packages/action/dist`), because GitHub 
 
 This repository also runs Trazo on its own pull requests ([`architecture.yml`](.github/workflows/architecture.yml)), using the bundle from the pull request itself.
 
-### Releasing to npm
-
-Two packages are published, both under the `@edgaragg` scope: `@edgaragg/trazo-core` and `@edgaragg/trazo-cli`. The GitHub Action is private on purpose — GitHub runs it from this repository, not from npm.
-
-One-time setup: an npm account with two-factor authentication. A personal scope needs nothing else: it is the account's username.
-
-```bash
-npm login
-npm run release:check     # build, typecheck and test
-npm publish --dry-run -w @edgaragg/trazo-core -w @edgaragg/trazo-cli   # lists exactly what would be published
-
-# Publish in dependency order: the CLI depends on core.
-npm publish -w @edgaragg/trazo-core
-npm publish -w @edgaragg/trazo-cli
-```
-
-Each package builds itself before packing (`prepack`), so a forgotten `npm run build` can't ship an empty package. To release a new version, bump `version` in both packages *and* the `^x.y.z` range of the CLI's dependency on core — npm doesn't do the second part for you — then tag the commit.
-
 ## License
 
 [MIT](LICENSE)
