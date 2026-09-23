@@ -1,17 +1,17 @@
-# @trazo/core
+# @edgaragg/trazo-core
 
 The engine behind [Trazo](https://github.com/edgaragg/trazo): it reads infrastructure files into an architecture model, compares two models, and renders them as Mermaid diagrams and Markdown. It never touches the filesystem, so it is easy to embed and to test.
 
-Most people want the command line ([`trazo`](https://www.npmjs.com/package/trazo)) or a CI integration instead. Use this package to build your own tooling on the same model.
+Most people want the command line ([`@edgaragg/trazo-cli`](https://www.npmjs.com/package/@edgaragg/trazo-cli)) or a CI integration instead. Use this package to build your own tooling on the same model.
 
 ```bash
-npm install @trazo/core
+npm install @edgaragg/trazo-core
 ```
 
 ## Example
 
 ```ts
-import { extractModel, diffModels, toMermaid, renderDiffMarkdown } from "@trazo/core";
+import { extractModel, diffModels, toMermaid, renderDiffMarkdown } from "@edgaragg/trazo-core";
 
 const before = extractModel([{ path: "docker-compose.yml", content: oldYaml }]);
 const after = extractModel([{ path: "docker-compose.yml", content: newYaml }]);

@@ -7702,7 +7702,7 @@ function renderDiffMarkdown(diff, after) {
   return lines.join("\n");
 }
 
-// ../cli/dist/chunk-53JLAUMZ.js
+// ../cli/dist/chunk-ZPOJEYFJ.js
 var import_child_process = require("child_process");
 var import_fs = require("fs");
 var import_path = require("path");

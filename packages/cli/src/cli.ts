@@ -6,7 +6,8 @@ import {
   renderArchitectureMarkdown,
   renderDiffMarkdown,
   toMermaid,
-} from "@trazo/core";
+} from "@edgaragg/trazo-core";
+import { runBitbucketComment } from "./bitbucket.js";
 import { collectAtRef, collectWorkingTree } from "./sources.js";
 
 /** Where the CLI reads its context from and writes its output to. Injected so it can be tested. */
@@ -17,6 +18,8 @@ export interface CliEnvironment {
   err(text: string): void;
   /** Writes a file for `--out`. `path` is resolved against `cwd` before this is called. */
   writeFile(path: string, content: string): void;
+  /** Environment variables for commands that read CI context. Defaults to `process.env`. */
+  vars?: NodeJS.ProcessEnv;
 }
 
 const HELP = `trazo - keep your architecture diagrams honest
@@ -24,6 +27,7 @@ const HELP = `trazo - keep your architecture diagrams honest
 Usage:
   trazo generate [dir]            Print the architecture found under dir (default: .)
   trazo diff [dir] --base <ref>   Print what changed since a git revision
+  trazo bitbucket-comment         Post the report on a Bitbucket pull request (run from Bitbucket Pipelines)
 
 Options:
   -b, --base <ref>     Git revision to compare against (diff only)
@@ -37,14 +41,14 @@ See the README for the list of supported infrastructure files.`;
 /**
  * Runs the command line interface.
  *
- * Never throws: every failure, including malformed input files and unknown git revisions,
- * is written to `env.err` and reported through the exit code.
+ * Never rejects: every failure, including malformed input files, unknown git revisions and
+ * rejected API calls, is written to `env.err` and reported through the exit code.
  *
  * @param argv - Arguments after the executable name.
  * @param env - Working directory and output streams. Injected so the CLI can be tested.
  * @returns The process exit code: 0 on success, 1 on failure or invalid usage.
  */
-export function run(argv: readonly string[], env: CliEnvironment): number {
+export async function run(argv: readonly string[], env: CliEnvironment): Promise<number> {
   try {
     const { values, positionals } = parseArgs({
       args: [...argv],
@@ -105,6 +109,11 @@ export function run(argv: readonly string[], env: CliEnvironment): number {
       const after = extractModel(collectWorkingTree(root));
       const diff = diffModels(before, after);
       env.out(format === "json" ? JSON.stringify(diff, null, 2) : renderDiffMarkdown(diff, after));
+      return 0;
+    }
+
+    if (command === "bitbucket-comment") {
+      await runBitbucketComment(env.vars ?? process.env, env.out);
       return 0;
     }
 

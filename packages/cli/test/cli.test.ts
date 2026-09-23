@@ -6,23 +6,26 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run } from "../src/index.js";
 
 let dir: string;
+let vars: NodeJS.ProcessEnv;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "trazo-"));
+  vars = {}; // never inherit the real CI environment
 });
 
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-function cli(...args: string[]) {
+async function cli(...args: string[]) {
   let out = "";
   let err = "";
-  const code = run(args, {
+  const code = await run(args, {
     cwd: dir,
     out: (text) => (out += text),
     err: (text) => (err += text),
     writeFile: (path, content) => writeFileSync(path, content),
+    vars,
   });
   return { code, out, err };
 }
@@ -39,49 +42,49 @@ const write = (path: string, content: string) => {
 };
 
 describe("trazo generate", () => {
-  it("prints a Mermaid diagram of the compose files it finds", () => {
+  it("prints a Mermaid diagram of the compose files it finds", async () => {
     write("docker-compose.yml", "services:\n  api:\n    depends_on: [db]\n  db:\n    image: postgres:16\n");
-    const { code, out } = cli("generate");
+    const { code, out } = await cli("generate");
 
     expect(code).toBe(0);
     expect(out).toContain("flowchart LR");
     expect(out).toContain("n_api --> n_db");
   });
 
-  it("can print the model as JSON", () => {
+  it("can print the model as JSON", async () => {
     write("docker-compose.yml", "services:\n  api: {}\n");
-    const { code, out } = cli("generate", "--format", "json");
+    const { code, out } = await cli("generate", "--format", "json");
 
     expect(code).toBe(0);
     expect(JSON.parse(out).nodes[0].id).toBe("api");
   });
 
-  it("finds compose files in subdirectories but skips node_modules", () => {
+  it("finds compose files in subdirectories but skips node_modules", async () => {
     write("deploy/compose.yaml", "services:\n  api: {}\n");
     write("node_modules/pkg/docker-compose.yml", "services:\n  ignored: {}\n");
-    const { out } = cli("generate", "--format", "json");
+    const { out } = await cli("generate", "--format", "json");
 
     expect(JSON.parse(out).nodes.map((n: { id: string }) => n.id)).toEqual(["api"]);
   });
 
-  it("fails with a clear message when there is nothing to read", () => {
-    const { code, err } = cli("generate");
+  it("fails with a clear message when there is nothing to read", async () => {
+    const { code, err } = await cli("generate");
 
     expect(code).toBe(1);
     expect(err).toContain("no supported infrastructure files found");
   });
 
-  it("reports malformed YAML instead of crashing", () => {
+  it("reports malformed YAML instead of crashing", async () => {
     write("docker-compose.yml", "services: [");
-    const { code, err } = cli("generate");
+    const { code, err } = await cli("generate");
 
     expect(code).toBe(1);
     expect(err).toContain("Invalid YAML in docker-compose.yml");
   });
 
-  it("can render a full architecture document as Markdown", () => {
+  it("can render a full architecture document as Markdown", async () => {
     write("docker-compose.yml", "services:\n  api:\n    depends_on: [db]\n  db:\n    image: postgres:16\n");
-    const { code, out } = cli("generate", "--format", "markdown");
+    const { code, out } = await cli("generate", "--format", "markdown");
 
     expect(code).toBe(0);
     expect(out).toContain("<!-- trazo-architecture -->");
@@ -90,26 +93,26 @@ describe("trazo generate", () => {
     expect(out).toContain("`api` → `db`");
   });
 
-  it("writes to a file instead of stdout with --out", () => {
+  it("writes to a file instead of stdout with --out", async () => {
     write("docker-compose.yml", "services:\n  api: {}\n");
-    const { code, out } = cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
+    const { code, out } = await cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
 
     expect(code).toBe(0);
     expect(out).toBe("");
     expect(readFileSync(join(dir, "ARCHITECTURE.md"), "utf8")).toContain("`api` (service)");
   });
 
-  it("resolves --out against cwd, not against the scanned directory", () => {
+  it("resolves --out against cwd, not against the scanned directory", async () => {
     write("deploy/docker-compose.yml", "services:\n  api: {}\n");
-    const { code } = cli("generate", "deploy", "--out", "ARCHITECTURE.md");
+    const { code } = await cli("generate", "deploy", "--out", "ARCHITECTURE.md");
 
     expect(code).toBe(0);
     expect(existsSync(join(dir, "ARCHITECTURE.md"))).toBe(true);
     expect(existsSync(join(dir, "deploy", "ARCHITECTURE.md"))).toBe(false);
   });
 
-  it("with --out, writes a file saying so instead of failing when nothing is found", () => {
-    const { code, err } = cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
+  it("with --out, writes a file saying so instead of failing when nothing is found", async () => {
+    const { code, err } = await cli("generate", "--format", "markdown", "--out", "ARCHITECTURE.md");
 
     expect(code).toBe(0);
     expect(err).toBe("");
@@ -118,9 +121,9 @@ describe("trazo generate", () => {
     );
   });
 
-  it("rejects an unknown format", () => {
+  it("rejects an unknown format", async () => {
     write("docker-compose.yml", "services:\n  api: {}\n");
-    const { code, err } = cli("generate", "--format", "yaml");
+    const { code, err } = await cli("generate", "--format", "yaml");
 
     expect(code).toBe(1);
     expect(err).toContain('unknown format "yaml"');
@@ -128,14 +131,14 @@ describe("trazo generate", () => {
 });
 
 describe("trazo diff", () => {
-  it("reports what changed since a git revision", () => {
+  it("reports what changed since a git revision", async () => {
     git("init", "-q", "-b", "main");
     write("docker-compose.yml", "services:\n  api: {}\n");
     git("add", ".");
     git("commit", "-q", "-m", "base");
 
     write("docker-compose.yml", "services:\n  api:\n    depends_on: [cache]\n  cache:\n    image: redis:7\n");
-    const { code, out } = cli("diff", "--base", "main");
+    const { code, out } = await cli("diff", "--base", "main");
 
     expect(code).toBe(0);
     expect(out).toContain("### Added components");
@@ -143,14 +146,14 @@ describe("trazo diff", () => {
     expect(out).toContain("`api` → `cache`");
   });
 
-  it("reports every component as added when the base has no compose file", () => {
+  it("reports every component as added when the base has no compose file", async () => {
     git("init", "-q", "-b", "main");
     write("README.md", "# nothing to see\n");
     git("add", ".");
     git("commit", "-q", "-m", "base");
 
     write("docker-compose.yml", "services:\n  api:\n    depends_on: [db]\n  db:\n    image: postgres:16\n");
-    const { code, out } = cli("diff", "--base", "main");
+    const { code, out } = await cli("diff", "--base", "main");
 
     expect(code).toBe(0);
     expect(out).toContain("### Added components");
@@ -160,27 +163,27 @@ describe("trazo diff", () => {
     expect(out).not.toContain("Removed");
   });
 
-  it("reports every component as added when the base commit is empty", () => {
+  it("reports every component as added when the base commit is empty", async () => {
     git("init", "-q", "-b", "main");
     git("commit", "-q", "--allow-empty", "-m", "empty base");
 
     write("docker-compose.yml", "services:\n  api: {}\n");
-    const { code, out } = cli("diff", "--base", "main");
+    const { code, out } = await cli("diff", "--base", "main");
 
     expect(code).toBe(0);
     expect(out).toContain("`api`");
   });
 
-  it("requires --base", () => {
-    const { code, err } = cli("diff");
+  it("requires --base", async () => {
+    const { code, err } = await cli("diff");
 
     expect(code).toBe(1);
     expect(err).toContain("--base");
   });
 
-  it("explains how to fix an unknown revision", () => {
+  it("explains how to fix an unknown revision", async () => {
     git("init", "-q", "-b", "main");
-    const { code, err } = cli("diff", "--base", "does-not-exist");
+    const { code, err } = await cli("diff", "--base", "does-not-exist");
 
     expect(code).toBe(1);
     expect(err).toContain('Could not read git revision "does-not-exist"');
@@ -188,9 +191,29 @@ describe("trazo diff", () => {
   });
 });
 
+describe("trazo bitbucket-comment", () => {
+  it("does nothing outside a pull request build", async () => {
+    const { code, out, err } = await cli("bitbucket-comment");
+
+    expect(code).toBe(0);
+    expect(out).toContain("Not a pull request build");
+    expect(err).toBe("");
+  });
+
+  it("reports a missing token as a failure with a clear message", async () => {
+    vars = { BITBUCKET_PR_ID: "7" };
+    const { code, err } = await cli("bitbucket-comment");
+
+    expect(code).toBe(1);
+    expect(err).toContain("TRAZO_BITBUCKET_TOKEN");
+  });
+});
+
 describe("trazo", () => {
-  it("prints help and rejects unknown commands", () => {
-    expect(cli("--help").out).toContain("Usage:");
-    expect(cli("nope").code).toBe(1);
+  it("prints help and rejects unknown commands", async () => {
+    const help = (await cli("--help")).out;
+    expect(help).toContain("Usage:");
+    expect(help).toContain("bitbucket-comment");
+    expect((await cli("nope")).code).toBe(1);
   });
 });

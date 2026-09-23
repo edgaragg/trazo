@@ -7,8 +7,8 @@ const src = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "@trazo/core": src("./packages/core/src/index.ts"),
-      trazo: src("./packages/cli/src/index.ts"),
+      "@edgaragg/trazo-core": src("./packages/core/src/index.ts"),
+      "@edgaragg/trazo-cli": src("./packages/cli/src/index.ts"),
     },
   },
   test: {

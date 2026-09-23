@@ -1,5 +1,5 @@
 {
-  "name": "@trazo/core",
+  "name": "@edgaragg/trazo-core",
   "version": "0.1.0",
   "description": "Architecture model extraction, diffing and Mermaid rendering for Trazo.",
   "license": "MIT",

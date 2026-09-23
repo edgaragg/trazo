@@ -1,5 +1,5 @@
 {
-  "name": "trazo",
+  "name": "@edgaragg/trazo-cli",
   "version": "0.1.0",
   "description": "Generate Mermaid architecture diagrams from your infrastructure code, and catch architecture drift.",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "prepack": "npm run build"
   },
   "dependencies": {
-    "@trazo/core": "^0.1.0"
+    "@edgaragg/trazo-core": "^0.1.0"
   },
   "homepage": "https://github.com/edgaragg/trazo#readme",
   "bugs": {
@@ -48,6 +48,9 @@
     "docker-compose",
     "kubernetes",
     "cli",
-    "docs-as-code"
+    "docs-as-code",
+    "bitbucket",
+    "bitbucket-pipelines",
+    "pull-request"
   ]
 }

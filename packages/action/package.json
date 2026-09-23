@@ -1,5 +1,5 @@
 {
-  "name": "@trazo/action",
+  "name": "@edgaragg/trazo-action",
   "version": "0.1.0",
   "private": true,
   "description": "GitHub Action that reports architecture changes on pull requests.",
@@ -10,7 +10,7 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@trazo/core": "^0.1.0",
-    "trazo": "^0.1.0"
+    "@edgaragg/trazo-core": "^0.1.0",
+    "@edgaragg/trazo-cli": "^0.1.0"
   }
 }

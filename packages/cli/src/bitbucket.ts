@@ -1,5 +1,5 @@
-import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@trazo/core";
-import { collectAtRef, collectWorkingTree } from "trazo";
+import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
+import { collectAtRef, collectWorkingTree } from "./sources.js";
 
 interface BitbucketComment {
   id: number;

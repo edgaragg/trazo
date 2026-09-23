@@ -2,7 +2,7 @@
 import { writeFileSync } from "node:fs";
 import { run } from "./cli.js";
 
-process.exitCode = run(process.argv.slice(2), {
+process.exitCode = await run(process.argv.slice(2), {
   cwd: process.cwd(),
   out: (text) => process.stdout.write(`${text}\n`),
   err: (text) => process.stderr.write(`${text}\n`),
