@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { defaultExtractors, type SourceFile } from "@trazo/core";
+import { defaultExtractors, type SourceFile } from "@edgaragg/trazo-core";
 
 const IGNORED_DIRECTORIES = new Set(["node_modules", ".git", "dist", "build", ".next", "vendor"]);
 

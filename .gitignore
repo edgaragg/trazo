@@ -145,3 +145,6 @@ vite.config.ts.timestamp-*
 # Trazo
 # The GitHub Action runs straight from the repository, so its bundle must be committed.
 !packages/action/dist/
+
+# Personal release notes, kept out of the repository
+RELEASING.md

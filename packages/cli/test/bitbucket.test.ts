@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { runBitbucketComment } from "../src/comment.js";
+import { runBitbucketComment } from "../src/bitbucket.js";
 
 // Drives the integration against a fake Bitbucket API and a real git repository: reading the
 // destination revision, diffing, and creating or updating the pull request comment. The fake API

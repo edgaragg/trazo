@@ -1,6 +1,6 @@
 {
-  "name": "@trazo/action",
-  "version": "0.0.0",
+  "name": "@edgaragg/trazo-action",
+  "version": "0.1.0",
   "private": true,
   "description": "GitHub Action that reports architecture changes on pull requests.",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "build": "tsup"
   },
   "dependencies": {
-    "@trazo/core": "*",
-    "trazo": "*"
+    "@edgaragg/trazo-core": "^0.1.0",
+    "@edgaragg/trazo-cli": "^0.1.0"
   }
 }

@@ -4,8 +4,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@trazo/core": ["packages/core/src/index.ts"],
-      "trazo": ["packages/cli/src/index.ts"]
+      "@edgaragg/trazo-core": ["packages/core/src/index.ts"],
+      "@edgaragg/trazo-cli": ["packages/cli/src/index.ts"]
     }
   },
   "include": ["packages/*/src", "packages/*/test", "vitest.config.ts"]

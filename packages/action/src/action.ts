@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@trazo/core";
-import { collectAtRef, collectWorkingTree } from "trazo";
+import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
+import { collectAtRef, collectWorkingTree } from "@edgaragg/trazo-cli";
 
 interface PullRequestEvent {
   pull_request?: { number: number; base: { sha: string } };

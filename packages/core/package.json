@@ -1,6 +1,6 @@
 {
-  "name": "@trazo/core",
-  "version": "0.0.0",
+  "name": "@edgaragg/trazo-core",
+  "version": "0.1.0",
   "description": "Architecture model extraction, diffing and Mermaid rendering for Trazo.",
   "license": "MIT",
   "author": "Edgar González",
@@ -22,9 +22,29 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean"
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "yaml": "^2.9.1"
-  }
+  },
+  "homepage": "https://github.com/edgaragg/trazo#readme",
+  "bugs": {
+    "url": "https://github.com/edgaragg/trazo/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "architecture",
+    "diagram",
+    "mermaid",
+    "docker-compose",
+    "kubernetes",
+    "documentation",
+    "docs-as-code"
+  ]
 }

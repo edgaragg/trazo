@@ -1,6 +1,6 @@
 {
-  "name": "trazo",
-  "version": "0.0.0",
+  "name": "@edgaragg/trazo-cli",
+  "version": "0.1.0",
   "description": "Generate Mermaid architecture diagrams from your infrastructure code, and catch architecture drift.",
   "license": "MIT",
   "author": "Edgar González",
@@ -21,11 +21,36 @@
   "bin": {
     "trazo": "./dist/bin.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts src/bin.ts --format esm --dts --clean"
+    "build": "tsup src/index.ts src/bin.ts --format esm --dts --clean",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "@trazo/core": "*"
-  }
+    "@edgaragg/trazo-core": "^0.1.0"
+  },
+  "homepage": "https://github.com/edgaragg/trazo#readme",
+  "bugs": {
+    "url": "https://github.com/edgaragg/trazo/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "architecture",
+    "diagram",
+    "mermaid",
+    "docker-compose",
+    "kubernetes",
+    "cli",
+    "docs-as-code",
+    "bitbucket",
+    "bitbucket-pipelines",
+    "pull-request"
+  ]
 }
