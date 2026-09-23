@@ -100,7 +100,7 @@ npm update -g @edgaragg/trazo-cli      # update a global install
 npm uninstall -g @edgaragg/trazo-cli   # remove it
 ```
 
-Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.1.0 ...`) instead of following whatever is newest.
+Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.2.0 ...`) instead of following whatever is newest.
 
 ## Usage
 
