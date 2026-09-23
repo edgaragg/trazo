@@ -31,6 +31,10 @@ export function renderDiffMarkdown(diff: ModelDiff, after: ArchitectureModel): s
     return lines.join("\n");
   }
 
+  // Dependencies name components by id, which can be a path or namespace; show the name a reader knows.
+  const names = new Map([...diff.removedNodes, ...after.nodes].map((node) => [node.id, node.name]));
+  const label = (id: string) => code(names.get(id) ?? id);
+
   lines.push(
     ...section("Added components", diff.addedNodes.map(describeNode)),
     ...section("Removed components", diff.removedNodes.map(describeNode)),
@@ -41,17 +45,21 @@ export function renderDiffMarkdown(diff: ModelDiff, after: ArchitectureModel): s
           before.image !== next.image
             ? `image ${code(before.image ?? "none")} → ${code(next.image ?? "none")}`
             : undefined;
+        const type =
+          before.type !== next.type
+            ? `type ${code(before.type ?? "none")} → ${code(next.type ?? "none")}`
+            : undefined;
         const kind = before.kind !== next.kind ? `kind ${before.kind} → ${next.kind}` : undefined;
-        return `${code(next.name)}: ${[image, kind].filter(Boolean).join(", ")}`;
+        return `${code(next.name)}: ${[image, type, kind].filter(Boolean).join(", ")}`;
       }),
     ),
     ...section(
       "New dependencies",
-      diff.addedEdges.map((edge) => `${code(edge.from)} → ${code(edge.to)}`),
+      diff.addedEdges.map((edge) => `${label(edge.from)} → ${label(edge.to)}`),
     ),
     ...section(
       "Removed dependencies",
-      diff.removedEdges.map((edge) => `${code(edge.from)} → ${code(edge.to)}`),
+      diff.removedEdges.map((edge) => `${label(edge.from)} → ${label(edge.to)}`),
     ),
     "### Resulting architecture",
     "",

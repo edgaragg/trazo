@@ -35,7 +35,9 @@ export function renderArchitectureMarkdown(model: ArchitectureModel): string {
 
   if (model.edges.length > 0) {
     lines.push("", "## Dependencies", "");
-    for (const edge of model.edges) lines.push(`- ${code(edge.from)} → ${code(edge.to)}`);
+    const names = new Map(model.nodes.map((node) => [node.id, node.name]));
+    const label = (id: string) => code(names.get(id) ?? id);
+    for (const edge of model.edges) lines.push(`- ${label(edge.from)} → ${label(edge.to)}`);
   }
   return lines.join("\n");
 }

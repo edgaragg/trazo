@@ -2,7 +2,7 @@
 
 Architecture docs that can't go stale. Trazo extracts your system's structure from code and infrastructure files, generates Mermaid diagrams, and flags architecture changes on every pull request.
 
-> **Status: early.** It works end to end and reads Docker Compose and Kubernetes manifests. See the [roadmap](#roadmap).
+> **Status: early.** It works end to end and reads Docker Compose, Kubernetes, CloudFormation / SAM and AWS Amplify. See the [roadmap](#roadmap).
 
 ## Why
 
@@ -50,6 +50,8 @@ flowchart LR
 Databases, caches and queues are recognised from their image and drawn with their own shape and border colour (blue services, orange databases, teal caches, yellow queues) — a component added by a pull request is bordered green instead, taking priority over its kind's colour.
 
 Trazo also reads Kubernetes manifests ([`examples/kubernetes/app.yaml`](examples/kubernetes/app.yaml)): Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Pods each become a component, and an Ingress is linked to the workload its backend Service selects.
+
+It reads AWS too. [`examples/cloudformation/template.yaml`](examples/cloudformation/template.yaml) is a SAM application: tables, buckets, queues, topics, functions and APIs become components, and a component depends on whatever it refers to (`!Ref`, `!GetAtt`, `!Sub`, `DependsOn`), even through an IAM role. The arrow points from whoever calls to whoever is called, so an API points at the function behind it and a queue at the function it triggers. [`examples/amplify`](examples/amplify) is an Amplify (Gen 1) backend, read from its `backend-config.json`: each resource under its category, with its `dependsOn` as the dependencies.
 
 ## Installation
 
@@ -180,7 +182,10 @@ files → extractor → architecture model → diff against base → Markdown re
 
 - [x] Docker Compose (`services`, `depends_on`, `links`)
 - [x] Kubernetes manifests (Deployment/StatefulSet/DaemonSet/Job/CronJob/Pod, Ingress → Service → workload)
-- [ ] **Next up:** CloudFormation / SAM templates, including AWS Amplify backends — `amplify push` generates real CloudFormation under `amplify/backend/**/build/`, so the same extractor reads it; `amplify/backend/backend-config.json` would add the dependencies between resources (which function calls which table, which API calls which function) that raw CloudFormation alone doesn't declare
+- [x] CloudFormation / SAM templates (JSON and YAML), and AWS Amplify Gen 1 backends via `amplify/backend/backend-config.json`
+- [ ] Amplify GraphQL: the models in `schema.graphql` (each `@model` is a DynamoDB table) and the auth rules between them
+- [ ] AWS CDK: read the synthesised `cdk.out` templates, and Amplify Gen 2 through them
+- [ ] Show the Kubernetes resource kind (Deployment, StatefulSet...) as the component's type, the way CloudFormation resources already show theirs
 - [ ] A richer ARCHITECTURE.md (components and dependencies are very bare today)
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
@@ -191,6 +196,10 @@ files → extractor → architecture model → diff against base → Markdown re
 - Only **declared** relationships are detected (`depends_on`, `links`, or an Ingress's backend Service). A service that finds its database through an environment variable is not linked to it, and raw Kubernetes manifests have no way to declare that one workload calls another.
 - Docker Compose component ids come from the service name; two Compose files that define the same service name are merged into one component. Kubernetes ids are scoped to their namespace (`namespace/name`, defaulting to `default`), so the same resource name in different namespaces stays separate — but both are still drawn with just their bare name, so two same-named components from different namespaces look identical on a diagram that shows more than one namespace at once.
 - A Kubernetes Service only selects workloads, and an Ingress only resolves a Service, within its own namespace — matching real Kubernetes behaviour — and only when they are declared in the *same file*; Trazo reads one file at a time, so a Service defined elsewhere can't be resolved.
+- CloudFormation: a component depends on what it refers to inside the same template. Other stacks (`AWS::CloudFormation::Stack`), `Fn::ImportValue` and values passed as parameters are not followed, and neither is a resource name built by hand into a string. Only resource types that are components are drawn — functions, APIs, tables, buckets, queues, topics, caches and similar; an S3 bucket is drawn as a database, and there is no shape for storage. A reference through a shared IAM role or policy reaches everything that role can use, which is what the function can do rather than what it does.
+- SAM: a function's `Api` or `HttpApi` event that names no API gets the `ServerlessRestApi` / `ServerlessHttpApi` SAM creates for it. `Globals` are not applied. An API whose `DefinitionBody` is an `AWS::Include` of an external OpenAPI file is not resolved, since its integrations live in that file, and the EventBridge rules SAM creates for `CloudWatchEvent` / `EventBridgeRule` events are not drawn.
+- Amplify: only Gen 1 is read, from `backend-config.json`. The CloudFormation Amplify generates under `amplify/backend` is skipped on purpose (every function's template names its resource `LambdaFunction`), which also means what a resource does beyond its `dependsOn` is not visible. Gen 2 defines its backend in TypeScript and is not supported yet.
+- Directories that only hold build output or a copy of what is deployed are skipped while scanning: `node_modules`, `dist`, `build`, `.aws-sam`, `cdk.out` and Amplify's `#current-cloud-backend`. Naming one as the directory to scan still works. Files over 2 MB are skipped too, since every JSON and YAML file is offered to the CloudFormation reader.
 - The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token. Bitbucket Pipelines has the same kind of gap from the other direction: by default it doesn't run a pull-request pipeline at all for a pull request opened from a fork, so `trazo bitbucket-comment` never runs on those either.
 
 ## Development

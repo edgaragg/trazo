@@ -40,12 +40,12 @@ var require_identity = __commonJS({
     var SCALAR = /* @__PURE__ */ Symbol.for("yaml.scalar");
     var SEQ = /* @__PURE__ */ Symbol.for("yaml.seq");
     var NODE_TYPE = /* @__PURE__ */ Symbol.for("yaml.node.type");
-    var isAlias = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
+    var isAlias2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === ALIAS;
     var isDocument = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === DOC;
-    var isMap = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
+    var isMap2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === MAP;
     var isPair = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === PAIR;
-    var isScalar = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
-    var isSeq = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
+    var isScalar2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SCALAR;
+    var isSeq2 = (node) => !!node && typeof node === "object" && node[NODE_TYPE] === SEQ;
     function isCollection(node) {
       if (node && typeof node === "object")
         switch (node[NODE_TYPE]) {
@@ -66,7 +66,7 @@ var require_identity = __commonJS({
         }
       return false;
     }
-    var hasAnchor = (node) => (isScalar(node) || isCollection(node)) && !!node.anchor;
+    var hasAnchor = (node) => (isScalar2(node) || isCollection(node)) && !!node.anchor;
     exports2.ALIAS = ALIAS;
     exports2.DOC = DOC;
     exports2.MAP = MAP;
@@ -75,14 +75,14 @@ var require_identity = __commonJS({
     exports2.SCALAR = SCALAR;
     exports2.SEQ = SEQ;
     exports2.hasAnchor = hasAnchor;
-    exports2.isAlias = isAlias;
+    exports2.isAlias = isAlias2;
     exports2.isCollection = isCollection;
     exports2.isDocument = isDocument;
-    exports2.isMap = isMap;
+    exports2.isMap = isMap2;
     exports2.isNode = isNode;
     exports2.isPair = isPair;
-    exports2.isScalar = isScalar;
-    exports2.isSeq = isSeq;
+    exports2.isScalar = isScalar2;
+    exports2.isSeq = isSeq2;
   }
 });
 
@@ -4190,9 +4190,9 @@ var require_resolve_flow_collection = __commonJS({
     var blockMsg = "Block collections are not allowed within flow collections";
     var isBlock = (token) => token && (token.type === "block-map" || token.type === "block-seq");
     function resolveFlowCollection({ composeNode, composeEmptyNode }, ctx, fc, onError, tag) {
-      const isMap = fc.start.source === "{";
-      const fcName = isMap ? "flow map" : "flow sequence";
-      const NodeClass = tag?.nodeClass ?? (isMap ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
+      const isMap2 = fc.start.source === "{";
+      const fcName = isMap2 ? "flow map" : "flow sequence";
+      const NodeClass = tag?.nodeClass ?? (isMap2 ? YAMLMap.YAMLMap : YAMLSeq.YAMLSeq);
       const coll = new NodeClass(ctx.schema);
       coll.flow = true;
       const atRoot = ctx.atRoot;
@@ -4228,7 +4228,7 @@ var require_resolve_flow_collection = __commonJS({
             offset = props.end;
             continue;
           }
-          if (!isMap && ctx.options.strict && utilContainsNewline.containsNewline(key))
+          if (!isMap2 && ctx.options.strict && utilContainsNewline.containsNewline(key))
             onError(
               key,
               // checked by containsNewline()
@@ -4268,7 +4268,7 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep && !props.found) {
+        if (!isMap2 && !sep && !props.found) {
           const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
@@ -4291,7 +4291,7 @@ var require_resolve_flow_collection = __commonJS({
             startOnNewline: false
           });
           if (valueProps.found) {
-            if (!isMap && !props.found && ctx.options.strict) {
+            if (!isMap2 && !props.found && ctx.options.strict) {
               if (sep)
                 for (const st of sep) {
                   if (st === valueProps.found)
@@ -4323,7 +4323,7 @@ var require_resolve_flow_collection = __commonJS({
           const pair = new Pair.Pair(keyNode, valueNode);
           if (ctx.options.keepSourceTokens)
             pair.srcToken = collItem;
-          if (isMap) {
+          if (isMap2) {
             const map = coll;
             if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
               onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
@@ -4339,7 +4339,7 @@ var require_resolve_flow_collection = __commonJS({
           offset = valueNode ? valueNode.range[2] : valueProps.end;
         }
       }
-      const expectedEnd = isMap ? "}" : "]";
+      const expectedEnd = isMap2 ? "}" : "]";
       const [ce, ...ee] = fc.end;
       let cePos = offset;
       if (ce?.source === expectedEnd)
@@ -5626,7 +5626,7 @@ var require_cst = __commonJS({
     var FLOW_END = "";
     var SCALAR = "";
     var isCollection = (token) => !!token && "items" in token;
-    var isScalar = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
+    var isScalar2 = (token) => !!token && (token.type === "scalar" || token.type === "single-quoted-scalar" || token.type === "double-quoted-scalar" || token.type === "block-scalar");
     function prettyToken(token) {
       switch (token) {
         case BOM:
@@ -5710,7 +5710,7 @@ var require_cst = __commonJS({
     exports2.FLOW_END = FLOW_END;
     exports2.SCALAR = SCALAR;
     exports2.isCollection = isCollection;
-    exports2.isScalar = isScalar;
+    exports2.isScalar = isScalar2;
     exports2.prettyToken = prettyToken;
     exports2.tokenType = tokenType;
   }
@@ -7240,7 +7240,7 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
+    function parseDocument2(source, options = {}) {
       const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
       const parser$1 = new parser.Parser(lineCounter2?.addNewLine);
       const composer$1 = new composer.Composer(options);
@@ -7266,7 +7266,7 @@ var require_public_api = __commonJS({
       } else if (options === void 0 && reviver && typeof reviver === "object") {
         options = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument2(src, options);
       if (!doc)
         return null;
       doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
@@ -7302,7 +7302,7 @@ var require_public_api = __commonJS({
     }
     exports2.parse = parse2;
     exports2.parseAllDocuments = parseAllDocuments2;
-    exports2.parseDocument = parseDocument;
+    exports2.parseDocument = parseDocument2;
     exports2.stringify = stringify;
   }
 });
@@ -7365,6 +7365,247 @@ var import_node_fs = require("fs");
 // ../core/dist/index.js
 var import_yaml = __toESM(require_dist(), 1);
 var import_yaml2 = __toESM(require_dist(), 1);
+var import_yaml3 = __toESM(require_dist(), 1);
+var BACKEND_CONFIG = /(^|\/)amplify\/backend\/backend-config\.json$/;
+var SERVICE_KINDS = {
+  dynamodb: "database",
+  s3: "database",
+  kinesis: "queue",
+  kinesisfirehose: "queue"
+};
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+var amplifyExtractor = {
+  name: "amplify",
+  matches: (path) => BACKEND_CONFIG.test(path),
+  extract(file) {
+    let config;
+    try {
+      config = JSON.parse(file.content);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(`Invalid JSON in ${file.path}: ${reason}`);
+    }
+    const nodes = [];
+    const edges = [];
+    if (!isRecord(config)) return { nodes, edges };
+    const entries = [];
+    for (const [category, resources] of Object.entries(config)) {
+      if (!isRecord(resources)) continue;
+      for (const [name, definition] of Object.entries(resources)) {
+        if (!isRecord(definition)) continue;
+        entries.push({ category, name });
+        const service = typeof definition["service"] === "string" ? definition["service"] : void 0;
+        nodes.push({
+          id: `${category}/${name}`,
+          name,
+          kind: service && SERVICE_KINDS[service.toLowerCase()] || "service",
+          source: file.path,
+          ...service !== void 0 && { type: service }
+        });
+        const dependsOn2 = Array.isArray(definition["dependsOn"]) ? definition["dependsOn"] : [];
+        for (const dependency of dependsOn2) {
+          if (!isRecord(dependency)) continue;
+          const target = dependency["resourceName"] ?? dependency["resource"];
+          if (typeof dependency["category"] === "string" && typeof target === "string") {
+            edges.push({ from: `${category}/${name}`, to: `${dependency["category"]}/${target}`, label: "dependsOn" });
+          }
+        }
+      }
+    }
+    const nameCount = /* @__PURE__ */ new Map();
+    for (const { name } of entries) nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
+    for (const node of nodes) if ((nameCount.get(node.name) ?? 0) > 1) node.name = node.id;
+    return { nodes, edges };
+  }
+};
+var TEMPLATE_FILE = /\.(json|ya?ml|template)$/i;
+var AMPLIFY_TREE = /(^|\/)amplify\/backend\//;
+var KINDS = [
+  [
+    /^AWS::(DynamoDB::(Table|GlobalTable)|Serverless::SimpleTable|RDS::(DBInstance|DBCluster)|Neptune::DBCluster|DocDB::DBCluster|Redshift::Cluster|OpenSearchService::Domain|Elasticsearch::Domain|S3::Bucket|Timestream::Table)$/,
+    "database"
+  ],
+  [/^AWS::(ElastiCache::(CacheCluster|ReplicationGroup)|MemoryDB::Cluster)$/, "cache"],
+  [
+    /^AWS::(SQS::Queue|SNS::Topic|Kinesis::Stream|KinesisFirehose::DeliveryStream|Events::(Rule|EventBus)|MSK::Cluster|AmazonMQ::Broker)$/,
+    "queue"
+  ],
+  [
+    /^AWS::(Lambda::Function|Serverless::(Function|Api|HttpApi|StateMachine)|ApiGateway::RestApi|ApiGatewayV2::Api|AppSync::GraphQLApi|StepFunctions::StateMachine|ECS::Service|EC2::Instance|CloudFront::Distribution|Cognito::UserPool|ElasticLoadBalancingV2::LoadBalancer|AppRunner::Service|Batch::JobDefinition|Glue::Job)$/,
+    "service"
+  ]
+];
+var kindOf = (type) => KINDS.find(([pattern]) => pattern.test(type))?.[1];
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function wrapIntrinsic(tag, value) {
+  if (!tag || !tag.startsWith("!") || tag.startsWith("!!")) return value;
+  const name = tag.slice(1);
+  if (name === "Ref" || name === "Condition") return { [name]: value };
+  if (name === "GetAtt" && typeof value === "string") {
+    const dot = value.indexOf(".");
+    return { "Fn::GetAtt": dot < 0 ? [value] : [value.slice(0, dot), value.slice(dot + 1)] };
+  }
+  return { [`Fn::${name}`]: value };
+}
+function toPlain(node, doc) {
+  if ((0, import_yaml.isAlias)(node)) return toPlain(node.resolve(doc), doc);
+  if ((0, import_yaml.isScalar)(node)) return wrapIntrinsic(node.tag, node.value ?? null);
+  if ((0, import_yaml.isSeq)(node)) return wrapIntrinsic(node.tag, node.items.map((item) => toPlain(item, doc)));
+  if ((0, import_yaml.isMap)(node)) {
+    const map = {};
+    for (const pair of node.items) map[String(toPlain(pair.key, doc))] = toPlain(pair.value, doc);
+    return wrapIntrinsic(node.tag, map);
+  }
+  return null;
+}
+function readResources(file) {
+  if (!file.content.includes("AWS::")) return void 0;
+  let template;
+  if (file.content.trimStart().startsWith("{")) {
+    try {
+      template = JSON.parse(file.content);
+    } catch {
+      return void 0;
+    }
+  } else {
+    const doc = (0, import_yaml.parseDocument)(file.content);
+    const error = doc.errors[0];
+    if (error) throw new Error(`Invalid YAML in ${file.path}: ${error.message.split("\n")[0]}`);
+    template = toPlain(doc.contents, doc);
+  }
+  return isRecord2(template) && isRecord2(template["Resources"]) ? template["Resources"] : void 0;
+}
+function substitutedNames(text) {
+  const names = [];
+  for (const match of text.matchAll(/\$\{([^}]+)\}/g)) {
+    const inner = match[1] ?? "";
+    if (!inner.startsWith("!")) names.push(inner.split(".")[0]?.trim() ?? "");
+  }
+  return names;
+}
+function referencesIn(value, known, found = /* @__PURE__ */ new Set()) {
+  if (Array.isArray(value)) {
+    for (const item of value) referencesIn(item, known, found);
+  } else if (isRecord2(value)) {
+    for (const [key, inner] of Object.entries(value)) {
+      if (key === "Ref" && typeof inner === "string") {
+        if (known.has(inner)) found.add(inner);
+      } else if (key === "Fn::GetAtt") {
+        const first = Array.isArray(inner) ? inner[0] : typeof inner === "string" ? inner.split(".")[0] : void 0;
+        if (typeof first === "string" && known.has(first)) found.add(first);
+      } else if (key === "Fn::Sub") {
+        const [text, variables] = Array.isArray(inner) ? inner : [inner, void 0];
+        if (typeof text === "string") {
+          for (const name of substitutedNames(text)) if (known.has(name)) found.add(name);
+        }
+        referencesIn(variables, known, found);
+      } else {
+        referencesIn(inner, known, found);
+      }
+    }
+  }
+  return found;
+}
+function asResource(definition) {
+  if (!isRecord2(definition) || typeof definition["Type"] !== "string") return void 0;
+  const declared = definition["DependsOn"];
+  return {
+    type: definition["Type"],
+    properties: isRecord2(definition["Properties"]) ? definition["Properties"] : {},
+    dependsOn: Array.isArray(declared) ? declared.filter((name) => typeof name === "string") : typeof declared === "string" ? [declared] : []
+  };
+}
+var CONNECTORS = {
+  "AWS::Lambda::Permission": { from: ["SourceArn"], to: ["FunctionName"] },
+  "AWS::Lambda::EventSourceMapping": { from: ["EventSourceArn"], to: ["FunctionName"] },
+  "AWS::ApiGateway::Method": { from: ["RestApiId"], to: ["Integration"] },
+  "AWS::ApiGatewayV2::Integration": { from: ["ApiId"], to: ["IntegrationUri"] },
+  "AWS::SNS::Subscription": { from: ["TopicArn"], to: ["Endpoint"] },
+  "AWS::AppSync::DataSource": {
+    from: ["ApiId"],
+    to: [
+      "LambdaConfig",
+      "DynamoDBConfig",
+      "OpenSearchServiceConfig",
+      "ElasticsearchConfig",
+      "RelationalDatabaseConfig",
+      "EventBridgeConfig",
+      "HttpConfig"
+    ]
+  }
+};
+var IMPLICIT_APIS = {
+  Api: { logicalId: "ServerlessRestApi", type: "AWS::Serverless::Api", property: "RestApiId" },
+  HttpApi: { logicalId: "ServerlessHttpApi", type: "AWS::Serverless::HttpApi", property: "ApiId" }
+};
+var cloudFormationExtractor = {
+  name: "cloudformation",
+  matches: (path) => TEMPLATE_FILE.test(path) && !AMPLIFY_TREE.test(path),
+  extract(file) {
+    const raw = readResources(file);
+    if (!raw) return { nodes: [], edges: [] };
+    const resources = /* @__PURE__ */ new Map();
+    for (const [logicalId, definition] of Object.entries(raw)) {
+      const resource = asResource(definition);
+      if (resource) resources.set(logicalId, resource);
+    }
+    const known = new Set(resources.keys());
+    const id = (logicalId) => `${file.path}#${logicalId}`;
+    const nodes = /* @__PURE__ */ new Map();
+    const addNode = (logicalId, type) => {
+      const kind = kindOf(type);
+      if (kind) nodes.set(logicalId, { id: id(logicalId), name: logicalId, kind, source: file.path, type });
+    };
+    for (const [logicalId, { type }] of resources) addNode(logicalId, type);
+    const edges = /* @__PURE__ */ new Map();
+    const link = (from, to, label) => {
+      if (from !== to && nodes.has(from) && nodes.has(to)) edges.set(`${from} ${to}`, { from: id(from), to: id(to), label });
+    };
+    const references = /* @__PURE__ */ new Map();
+    for (const [logicalId, { properties, dependsOn: dependsOn2 }] of resources) {
+      const { Events: events, ...rest } = properties;
+      const outgoing = referencesIn(rest, known);
+      for (const name of dependsOn2) if (known.has(name)) outgoing.add(name);
+      references.set(logicalId, outgoing);
+      if (!isRecord2(events)) continue;
+      for (const event of Object.values(events)) {
+        if (!isRecord2(event) || typeof event["Type"] !== "string") continue;
+        const eventProperties = isRecord2(event["Properties"]) ? event["Properties"] : {};
+        for (const source of referencesIn(eventProperties, known)) link(source, logicalId, "triggers");
+        const implicit = IMPLICIT_APIS[event["Type"]];
+        if (implicit && !(implicit.property in eventProperties)) {
+          if (!nodes.has(implicit.logicalId)) addNode(implicit.logicalId, implicit.type);
+          link(implicit.logicalId, logicalId, "triggers");
+        }
+      }
+    }
+    for (const start of nodes.keys()) {
+      const visited = /* @__PURE__ */ new Set([start]);
+      const pending = [...references.get(start) ?? []];
+      for (let name = pending.pop(); name !== void 0; name = pending.pop()) {
+        if (visited.has(name)) continue;
+        visited.add(name);
+        if (nodes.has(name)) link(start, name, "references");
+        else pending.push(...references.get(name) ?? []);
+      }
+    }
+    for (const [, { type, properties }] of resources) {
+      const connector = CONNECTORS[type];
+      if (!connector) continue;
+      const side = (names) => {
+        const found = /* @__PURE__ */ new Set();
+        for (const name of names) referencesIn(properties[name], known, found);
+        return found;
+      };
+      for (const from of side(connector.from)) for (const to of side(connector.to)) link(from, to, "triggers");
+    }
+    return { nodes: [...nodes.values()], edges: [...edges.values()] };
+  }
+};
 var KIND_PATTERNS = [
   [
     "database",
@@ -7379,13 +7620,13 @@ function classifyImage(image) {
   return KIND_PATTERNS.find(([, pattern]) => pattern.test(name))?.[0] ?? "service";
 }
 var COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
-function isRecord(value) {
+function isRecord3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function dependsOn(definition) {
   const value = definition["depends_on"];
   if (Array.isArray(value)) return value.filter((v) => typeof v === "string");
-  if (isRecord(value)) return Object.keys(value);
+  if (isRecord3(value)) return Object.keys(value);
   return [];
 }
 function links(definition) {
@@ -7399,16 +7640,16 @@ var dockerComposeExtractor = {
   extract(file) {
     let document;
     try {
-      document = (0, import_yaml.parse)(file.content);
+      document = (0, import_yaml2.parse)(file.content);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(`Invalid YAML in ${file.path}: ${reason}`);
     }
     const nodes = [];
     const edges = [];
-    if (!isRecord(document) || !isRecord(document["services"])) return { nodes, edges };
+    if (!isRecord3(document) || !isRecord3(document["services"])) return { nodes, edges };
     for (const [name, raw] of Object.entries(document["services"])) {
-      const definition = isRecord(raw) ? raw : {};
+      const definition = isRecord3(raw) ? raw : {};
       const image = typeof definition["image"] === "string" ? definition["image"] : void 0;
       nodes.push({
         id: name,
@@ -7428,21 +7669,21 @@ var dockerComposeExtractor = {
   }
 };
 var WORKLOAD_KINDS = /* @__PURE__ */ new Set(["Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"]);
-function isRecord2(value) {
+function isRecord4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function child(parent, key) {
   const value = parent?.[key];
-  return isRecord2(value) ? value : void 0;
+  return isRecord4(value) ? value : void 0;
 }
 function stringEntries(value) {
-  if (!isRecord2(value)) return {};
+  if (!isRecord4(value)) return {};
   const map = {};
   for (const [key, v] of Object.entries(value)) if (typeof v === "string") map[key] = v;
   return map;
 }
 function parseDocuments(content, path) {
-  const documents = (0, import_yaml2.parseAllDocuments)(content);
+  const documents = (0, import_yaml3.parseAllDocuments)(content);
   const error = documents.flatMap((doc) => doc.errors)[0];
   if (error) throw new Error(`Invalid YAML in ${path}: ${error.message.split("\n")[0]}`);
   return documents.map((doc) => doc.toJS()).filter((doc) => doc !== null && doc !== void 0);
@@ -7450,14 +7691,14 @@ function parseDocuments(content, path) {
 function firstContainerImage(spec) {
   const containers = spec?.["containers"];
   const first = Array.isArray(containers) ? containers[0] : void 0;
-  return isRecord2(first) && typeof first["image"] === "string" ? first["image"] : void 0;
+  return isRecord4(first) && typeof first["image"] === "string" ? first["image"] : void 0;
 }
 function podTemplate(kind, spec) {
   if (kind === "CronJob") return child(child(child(spec, "jobTemplate"), "spec"), "template");
   return child(spec, "template");
 }
 function parseResource(doc) {
-  if (!isRecord2(doc) || typeof doc["apiVersion"] !== "string" || typeof doc["kind"] !== "string") {
+  if (!isRecord4(doc) || typeof doc["apiVersion"] !== "string" || typeof doc["kind"] !== "string") {
     return void 0;
   }
   const kind = doc["kind"];
@@ -7496,7 +7737,7 @@ function selects(selector, podLabels) {
 function ingressBackends(spec) {
   const names = [];
   const addBackend = (backend) => {
-    if (!isRecord2(backend)) return;
+    if (!isRecord4(backend)) return;
     const name = child(backend, "service")?.["name"] ?? backend["serviceName"];
     if (typeof name === "string") names.push(name);
   };
@@ -7505,7 +7746,7 @@ function ingressBackends(spec) {
   for (const rule of Array.isArray(spec["rules"]) ? spec["rules"] : []) {
     const paths = child(rule, "http")?.["paths"];
     for (const path of Array.isArray(paths) ? paths : []) {
-      if (isRecord2(path)) addBackend(path["backend"]);
+      if (isRecord4(path)) addBackend(path["backend"]);
     }
   }
   return names;
@@ -7554,7 +7795,12 @@ var kubernetesExtractor = {
     return { nodes, edges };
   }
 };
-var defaultExtractors = [dockerComposeExtractor, kubernetesExtractor];
+var defaultExtractors = [
+  dockerComposeExtractor,
+  kubernetesExtractor,
+  cloudFormationExtractor,
+  amplifyExtractor
+];
 var byId = (a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 var edgeKey = (edge) => `${edge.from}\0${edge.to}`;
 var byEdge = (a, b) => {
@@ -7565,12 +7811,13 @@ function extractModel(files, extractors = defaultExtractors) {
   const nodes = /* @__PURE__ */ new Map();
   const edges = /* @__PURE__ */ new Map();
   for (const file of files) {
-    const extractor = extractors.find((candidate) => candidate.matches(file.path));
-    if (!extractor) continue;
-    const extracted = extractor.extract(file);
-    for (const node of extracted.nodes) nodes.set(node.id, node);
-    for (const edge of extracted.edges) {
-      if (!edges.has(edgeKey(edge))) edges.set(edgeKey(edge), edge);
+    for (const extractor of extractors) {
+      if (!extractor.matches(file.path)) continue;
+      const extracted = extractor.extract(file);
+      for (const node of extracted.nodes) nodes.set(node.id, node);
+      for (const edge of extracted.edges) {
+        if (!edges.has(edgeKey(edge))) edges.set(edgeKey(edge), edge);
+      }
     }
   }
   return {
@@ -7587,7 +7834,7 @@ function diffModels(before, after) {
   const changedNodes = [];
   for (const [id, current] of afterNodes) {
     const previous = beforeNodes.get(id);
-    if (previous && (previous.image !== current.image || previous.kind !== current.kind)) {
+    if (previous && (previous.image !== current.image || previous.type !== current.type || previous.kind !== current.kind)) {
       changedNodes.push({ before: previous, after: current });
     }
   }
@@ -7667,7 +7914,10 @@ function toMermaid(model, options = {}) {
   return lines.join("\n");
 }
 var code = (text) => `\`${text}\``;
-var describeNode = (node) => node.image ? `${code(node.name)} (${node.kind}, ${code(node.image)})` : `${code(node.name)} (${node.kind})`;
+var describeNode = (node) => {
+  const detail = node.image ?? node.type;
+  return detail ? `${code(node.name)} (${node.kind}, ${code(detail)})` : `${code(node.name)} (${node.kind})`;
+};
 var REPORT_MARKER = "<!-- trazo-report -->";
 function section(title, items) {
   return items.length === 0 ? [] : [`### ${title}`, "", ...items.map((item) => `- ${item}`), ""];
@@ -7678,6 +7928,8 @@ function renderDiffMarkdown(diff, after) {
     lines.push("No architecture changes detected.");
     return lines.join("\n");
   }
+  const names = new Map([...diff.removedNodes, ...after.nodes].map((node) => [node.id, node.name]));
+  const label = (id) => code(names.get(id) ?? id);
   lines.push(
     ...section("Added components", diff.addedNodes.map(describeNode)),
     ...section("Removed components", diff.removedNodes.map(describeNode)),
@@ -7685,17 +7937,18 @@ function renderDiffMarkdown(diff, after) {
       "Changed components",
       diff.changedNodes.map(({ before, after: next }) => {
         const image = before.image !== next.image ? `image ${code(before.image ?? "none")} \u2192 ${code(next.image ?? "none")}` : void 0;
+        const type = before.type !== next.type ? `type ${code(before.type ?? "none")} \u2192 ${code(next.type ?? "none")}` : void 0;
         const kind = before.kind !== next.kind ? `kind ${before.kind} \u2192 ${next.kind}` : void 0;
-        return `${code(next.name)}: ${[image, kind].filter(Boolean).join(", ")}`;
+        return `${code(next.name)}: ${[image, type, kind].filter(Boolean).join(", ")}`;
       })
     ),
     ...section(
       "New dependencies",
-      diff.addedEdges.map((edge) => `${code(edge.from)} \u2192 ${code(edge.to)}`)
+      diff.addedEdges.map((edge) => `${label(edge.from)} \u2192 ${label(edge.to)}`)
     ),
     ...section(
       "Removed dependencies",
-      diff.removedEdges.map((edge) => `${code(edge.from)} \u2192 ${code(edge.to)}`)
+      diff.removedEdges.map((edge) => `${label(edge.from)} \u2192 ${label(edge.to)}`)
     ),
     "### Resulting architecture",
     "",
@@ -7706,11 +7959,22 @@ function renderDiffMarkdown(diff, after) {
   return lines.join("\n");
 }
 
-// ../cli/dist/chunk-ZPOJEYFJ.js
+// ../cli/dist/chunk-PLXU7NR3.js
 var import_child_process = require("child_process");
 var import_fs = require("fs");
 var import_path = require("path");
-var IGNORED_DIRECTORIES = /* @__PURE__ */ new Set(["node_modules", ".git", "dist", "build", ".next", "vendor"]);
+var IGNORED_DIRECTORIES = /* @__PURE__ */ new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "vendor",
+  ".aws-sam",
+  "cdk.out",
+  "#current-cloud-backend"
+]);
+var MAX_FILE_BYTES = 2e6;
 var isSupported = (path) => defaultExtractors.some((extractor) => extractor.matches(path));
 function collectWorkingTree(root) {
   const files = [];
@@ -7719,7 +7983,7 @@ function collectWorkingTree(root) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         if (!IGNORED_DIRECTORIES.has(entry.name)) walk(relativePath);
-      } else if (entry.isFile() && isSupported(relativePath)) {
+      } else if (entry.isFile() && isSupported(relativePath) && (0, import_fs.statSync)((0, import_path.join)(root, relativePath)).size <= MAX_FILE_BYTES) {
         files.push({ path: relativePath, content: (0, import_fs.readFileSync)((0, import_path.join)(root, relativePath), "utf8") });
       }
     }

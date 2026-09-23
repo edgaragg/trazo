@@ -121,6 +121,50 @@ describe("trazo generate", () => {
     );
   });
 
+  it("reads a SAM template and an Amplify backend found next to each other", async () => {
+    write(
+      "api/template.yaml",
+      "Resources:\n  Table: { Type: \"AWS::DynamoDB::Table\" }\n  Fn:\n    Type: AWS::Lambda::Function\n    Properties: { Environment: { Variables: { T: !Ref Table } } }\n",
+    );
+    write(
+      "app/amplify/backend/backend-config.json",
+      JSON.stringify({ function: { checkout: { service: "Lambda", dependsOn: [{ category: "storage", resourceName: "orders" }] } }, storage: { orders: { service: "DynamoDB" } } }),
+    );
+    const { code, out } = await cli("generate", "--format", "json");
+
+    expect(code).toBe(0);
+    const model = JSON.parse(out) as { nodes: Array<{ name: string }>; edges: unknown[] };
+    expect(model.nodes.map((n) => n.name).sort()).toEqual(["Fn", "Table", "checkout", "orders"]);
+    expect(model.edges).toHaveLength(2);
+  });
+
+  it.each([
+    [".aws-sam", ".aws-sam/packaged.yaml"],
+    ["cdk.out", "cdk.out/Stack.template.json"],
+    ["Amplify's copy of the deployed backend", "amplify/#current-cloud-backend/function/fn/fn-cloudformation-template.json"],
+  ])("skips %s, which only duplicates the real templates", async (_label, path) => {
+    write("template.yaml", "Resources:\n  Real: { Type: \"AWS::Lambda::Function\" }\n");
+    write(path, JSON.stringify({ Resources: { Copy: { Type: "AWS::Lambda::Function" } } }));
+    const { out } = await cli("generate", "--format", "json");
+
+    expect(JSON.parse(out).nodes.map((n: { name: string }) => n.name)).toEqual(["Real"]);
+  });
+
+  it("can still scan a build directory when it is named explicitly", async () => {
+    write("cdk.out/Stack.template.json", JSON.stringify({ Resources: { Copy: { Type: "AWS::Lambda::Function" } } }));
+    const { out } = await cli("generate", "cdk.out", "--format", "json");
+
+    expect(JSON.parse(out).nodes.map((n: { name: string }) => n.name)).toEqual(["Copy"]);
+  });
+
+  it("does not read data files too big to be a template", async () => {
+    write("real.template.json", JSON.stringify({ Resources: { Real: { Type: "AWS::Lambda::Function" } } }));
+    write("huge.json", JSON.stringify({ Resources: { Huge: { Type: "AWS::Lambda::Function" } }, padding: "x".repeat(2_100_000) }));
+    const { out } = await cli("generate", "--format", "json");
+
+    expect(JSON.parse(out).nodes.map((n: { name: string }) => n.name)).toEqual(["Real"]);
+  });
+
   it("rejects an unknown format", async () => {
     write("docker-compose.yml", "services:\n  api: {}\n");
     const { code, err } = await cli("generate", "--format", "yaml");
