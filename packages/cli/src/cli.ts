@@ -43,6 +43,26 @@ Options:
 
 See the README for the list of supported infrastructure files.`;
 
+const quoted = (text: string) => (/\s/.test(text) ? `"${text}"` : text);
+
+/**
+ * The command that reproduces a `generate` run that writes a Markdown document, for the header of
+ * that document. It repeats the directory, output and config the way they were given, so following it
+ * rewrites the same file instead of creating another.
+ */
+function regenerateCommand(
+  positionals: readonly string[],
+  values: { write?: boolean | undefined; out?: string | undefined; config?: string | undefined },
+): string {
+  const [, dir] = positionals;
+  return [
+    "trazo generate",
+    ...(dir !== undefined ? [quoted(dir)] : []),
+    ...(values.write ? ["--write"] : ["--format markdown", ...(values.out ? [`--out ${quoted(values.out)}`] : [])]),
+    ...(values.config ? [`--config ${quoted(values.config)}`] : []),
+  ].join(" ");
+}
+
 /**
  * Runs the command line interface.
  *
@@ -98,7 +118,7 @@ export async function run(argv: readonly string[], env: CliEnvironment): Promise
       }
       const rendered =
         format === "json" ? JSON.stringify(model, null, 2)
-        : format === "markdown" || values.write ? renderArchitectureMarkdown(model, config.kinds)
+        : format === "markdown" || values.write ? renderArchitectureMarkdown(model, { kinds: config.kinds, command: regenerateCommand(positionals, values) })
         : toMermaid(model, { kinds: config.kinds });
       if (values.write) {
         env.writeFile(join(root, config.output.dir, config.output.file), rendered);

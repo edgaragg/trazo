@@ -358,4 +358,28 @@ describe("trazo.config.yaml", () => {
     expect(code).toBe(1);
     expect(err).toContain("no supported infrastructure files found");
   });
+
+  const SERVICE = "services:\n  api: {}\n";
+
+  it.each([
+    [["generate", "--write"], ".trazo/architecture.md", "trazo generate --write"],
+    [["generate", "app", "--write"], "app/.trazo/architecture.md", "trazo generate app --write"],
+    [["generate", "--write", "--config", "ci/trazo.yaml"], ".trazo/architecture.md", "trazo generate --write --config ci/trazo.yaml"],
+    [["generate", "--format", "markdown", "--out", "docs/arq.md"], "docs/arq.md", "trazo generate --format markdown --out docs/arq.md"],
+    [["generate", "app", "--format", "markdown", "--out", "my docs/a.md"], "my docs/a.md", 'trazo generate app --format markdown --out "my docs/a.md"'],
+  ])("names the command that rewrites the document it wrote: %j", async (args, file, command) => {
+    write("docker-compose.yml", SERVICE);
+    write("app/docker-compose.yml", SERVICE);
+    write("ci/trazo.yaml", "");
+    expect((await cli(...args)).code).toBe(0);
+
+    expect(readFileSync(join(dir, file), "utf8")).toContain(`regenerate it with \`${command}\`.`);
+  });
+
+  it("names the command when the document is printed instead of written", async () => {
+    write("docker-compose.yml", SERVICE);
+    const { out } = await cli("generate", "--format", "markdown");
+
+    expect(out).toContain("regenerate it with `trazo generate --format markdown`.");
+  });
 });

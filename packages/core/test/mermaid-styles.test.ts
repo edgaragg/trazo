@@ -70,7 +70,7 @@ describe("toMermaid with kind styles", () => {
 
   it("is passed through by the architecture document and the diff report", () => {
     const kinds = { storage: { fill: "#abcdef" } };
-    expect(renderArchitectureMarkdown(one("storage"), kinds)).toContain("fill:#abcdef");
+    expect(renderArchitectureMarkdown(one("storage"), { kinds })).toContain("fill:#abcdef");
     // The component is unchanged, so it is drawn by its kind rather than as added.
     const same = one("storage");
     expect(renderDiffMarkdown(diffModels(same, same), same, kinds)).toContain("No architecture changes");
