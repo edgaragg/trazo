@@ -1,6 +1,6 @@
 {
   "name": "@trazo/bitbucket",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Report architecture changes on Bitbucket pull requests, from a Bitbucket Pipelines step.",
   "license": "MIT",
   "author": "Edgar González",
@@ -13,12 +13,32 @@
   "bin": {
     "trazo-bitbucket": "./dist/bin.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsup src/comment.ts src/bin.ts --format esm --dts --clean"
+    "build": "tsup src/comment.ts src/bin.ts --format esm --dts --clean",
+    "prepack": "npm run build"
   },
   "dependencies": {
-    "@trazo/core": "*",
-    "trazo": "*"
-  }
+    "@trazo/core": "^0.1.0",
+    "trazo": "^0.1.0"
+  },
+  "homepage": "https://github.com/edgaragg/trazo#readme",
+  "bugs": {
+    "url": "https://github.com/edgaragg/trazo/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "architecture",
+    "mermaid",
+    "bitbucket",
+    "bitbucket-pipelines",
+    "pull-request"
+  ]
 }
