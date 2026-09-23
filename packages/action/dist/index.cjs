@@ -7259,7 +7259,7 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse2(src, reviver, options) {
+    function parse3(src, reviver, options) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
@@ -7300,7 +7300,7 @@ var require_public_api = __commonJS({
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
-    exports2.parse = parse2;
+    exports2.parse = parse3;
     exports2.parseAllDocuments = parseAllDocuments2;
     exports2.parseDocument = parseDocument2;
     exports2.stringify = stringify;
@@ -7366,6 +7366,30 @@ var import_node_fs = require("fs");
 var import_yaml = __toESM(require_dist(), 1);
 var import_yaml2 = __toESM(require_dist(), 1);
 var import_yaml3 = __toESM(require_dist(), 1);
+var import_yaml4 = __toESM(require_dist(), 1);
+var IGNORE = "ignore";
+var compiled = /* @__PURE__ */ new WeakMap();
+var escapeRegex = (text) => text.replace(/[.*+?^$|()[\]{}\\]/g, "\\$&");
+function compile(rules) {
+  let entries = compiled.get(rules);
+  if (!entries) {
+    entries = Object.entries(rules).map(([key, kind]) => ({
+      pattern: new RegExp("^" + key.split("*").map(escapeRegex).join(".*") + "$", "i"),
+      specificity: key.replaceAll("*", "").length,
+      kind
+    }));
+    compiled.set(rules, entries);
+  }
+  return entries;
+}
+function ruleFor(rules, key) {
+  if (!rules || key === void 0) return void 0;
+  let best;
+  for (const entry of compile(rules)) {
+    if (entry.pattern.test(key) && (!best || entry.specificity > best.specificity)) best = entry;
+  }
+  return best?.kind;
+}
 var BACKEND_CONFIG = /(^|\/)amplify\/backend\/backend-config\.json$/;
 var SERVICE_KINDS = {
   dynamodb: "database",
@@ -7379,7 +7403,7 @@ function isRecord(value) {
 var amplifyExtractor = {
   name: "amplify",
   matches: (path) => BACKEND_CONFIG.test(path),
-  extract(file) {
+  extract(file, options) {
     let config;
     try {
       config = JSON.parse(file.content);
@@ -7395,12 +7419,14 @@ var amplifyExtractor = {
       if (!isRecord(resources)) continue;
       for (const [name, definition] of Object.entries(resources)) {
         if (!isRecord(definition)) continue;
-        entries.push({ category, name });
         const service = typeof definition["service"] === "string" ? definition["service"] : void 0;
+        const kind = ruleFor(options?.rules, service) || service && SERVICE_KINDS[service.toLowerCase()] || "service";
+        if (kind === IGNORE) continue;
+        entries.push({ category, name });
         nodes.push({
           id: `${category}/${name}`,
           name,
-          kind: service && SERVICE_KINDS[service.toLowerCase()] || "service",
+          kind,
           source: file.path,
           ...service !== void 0 && { type: service }
         });
@@ -7437,7 +7463,10 @@ var KINDS = [
     "service"
   ]
 ];
-var kindOf = (type) => KINDS.find(([pattern]) => pattern.test(type))?.[1];
+function kindOf(type, rules) {
+  const kind = ruleFor(rules, type) ?? KINDS.find(([pattern]) => pattern.test(type))?.[1];
+  return kind === IGNORE ? void 0 : kind;
+}
 function isRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -7545,7 +7574,7 @@ var IMPLICIT_APIS = {
 var cloudFormationExtractor = {
   name: "cloudformation",
   matches: (path) => TEMPLATE_FILE.test(path) && !AMPLIFY_TREE.test(path),
-  extract(file) {
+  extract(file, options) {
     const raw = readResources(file);
     if (!raw) return { nodes: [], edges: [] };
     const resources = /* @__PURE__ */ new Map();
@@ -7557,7 +7586,7 @@ var cloudFormationExtractor = {
     const id = (logicalId) => `${file.path}#${logicalId}`;
     const nodes = /* @__PURE__ */ new Map();
     const addNode = (logicalId, type) => {
-      const kind = kindOf(type);
+      const kind = kindOf(type, options?.rules);
       if (kind) nodes.set(logicalId, { id: id(logicalId), name: logicalId, kind, source: file.path, type });
     };
     for (const [logicalId, { type }] of resources) addNode(logicalId, type);
@@ -7614,10 +7643,10 @@ var KIND_PATTERNS = [
   ["cache", /redis|memcached|valkey|keydb/],
   ["queue", /rabbitmq|kafka|nats|activemq|redpanda|pulsar/]
 ];
-function classifyImage(image) {
+function classifyImage(image, rules) {
   if (!image) return "service";
   const name = (image.split("/").pop() ?? image).split(/[:@]/)[0]?.toLowerCase() ?? "";
-  return KIND_PATTERNS.find(([, pattern]) => pattern.test(name))?.[0] ?? "service";
+  return ruleFor(rules, name) ?? KIND_PATTERNS.find(([, pattern]) => pattern.test(name))?.[0] ?? "service";
 }
 var COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
 function isRecord3(value) {
@@ -7637,7 +7666,7 @@ function links(definition) {
 var dockerComposeExtractor = {
   name: "docker-compose",
   matches: (path) => COMPOSE_FILE.test(path),
-  extract(file) {
+  extract(file, options) {
     let document;
     try {
       document = (0, import_yaml2.parse)(file.content);
@@ -7651,10 +7680,12 @@ var dockerComposeExtractor = {
     for (const [name, raw] of Object.entries(document["services"])) {
       const definition = isRecord3(raw) ? raw : {};
       const image = typeof definition["image"] === "string" ? definition["image"] : void 0;
+      const kind = classifyImage(image, options?.rules);
+      if (kind === IGNORE) continue;
       nodes.push({
         id: name,
         name,
-        kind: classifyImage(image),
+        kind,
         source: file.path,
         ...image !== void 0 && { image }
       });
@@ -7754,7 +7785,7 @@ function ingressBackends(spec) {
 var kubernetesExtractor = {
   name: "kubernetes",
   matches: (path) => /\.ya?ml$/.test(path),
-  extract(file) {
+  extract(file, options) {
     const resources = parseDocuments(file.content, file.path).map(parseResource).filter((resource) => resource !== void 0);
     const id = (resource) => `${resource.namespace}/${resource.name}`;
     const nodes = [];
@@ -7762,10 +7793,12 @@ var kubernetesExtractor = {
     const ingresses = [];
     for (const resource of resources) {
       if (WORKLOAD_KINDS.has(resource.kind)) {
+        const kind = ruleFor(options?.rules, resource.kind) ?? classifyImage(resource.image, options?.rules);
+        if (kind === IGNORE) continue;
         nodes.push({
           id: id(resource),
           name: resource.name,
-          kind: classifyImage(resource.image),
+          kind,
           source: file.path,
           ...resource.image !== void 0 && { image: resource.image }
         });
@@ -7776,7 +7809,9 @@ var kubernetesExtractor = {
           selector: stringEntries(resource.spec["selector"])
         });
       } else if (resource.kind === "Ingress") {
-        nodes.push({ id: id(resource), name: resource.name, kind: "service", source: file.path });
+        const kind = ruleFor(options?.rules, "Ingress") ?? "service";
+        if (kind === IGNORE) continue;
+        nodes.push({ id: id(resource), name: resource.name, kind, source: file.path });
         ingresses.push({ namespace: resource.namespace, name: resource.name, backends: ingressBackends(resource.spec) });
       }
     }
@@ -7807,13 +7842,13 @@ var byEdge = (a, b) => {
   const [ka, kb] = [edgeKey(a), edgeKey(b)];
   return ka < kb ? -1 : ka > kb ? 1 : 0;
 };
-function extractModel(files, extractors = defaultExtractors) {
+function extractModel(files, extractors = defaultExtractors, config = {}) {
   const nodes = /* @__PURE__ */ new Map();
   const edges = /* @__PURE__ */ new Map();
   for (const file of files) {
     for (const extractor of extractors) {
       if (!extractor.matches(file.path)) continue;
-      const extracted = extractor.extract(file);
+      const extracted = extractor.extract(file, { rules: config.extractors?.[extractor.name] });
       for (const node of extracted.nodes) nodes.set(node.id, node);
       for (const edge of extracted.edges) {
         if (!edges.has(edgeKey(edge))) edges.set(edgeKey(edge), edge);
@@ -7849,25 +7884,132 @@ function diffModels(before, after) {
 function isEmptyDiff(diff) {
   return diff.addedNodes.length === 0 && diff.removedNodes.length === 0 && diff.changedNodes.length === 0 && diff.addedEdges.length === 0 && diff.removedEdges.length === 0;
 }
-var SHAPES = {
-  service: (label) => `["${label}"]`,
-  database: (label) => `[("${label}")]`,
-  cache: (label) => `(["${label}"])`,
-  queue: (label) => `>"${label}"]`
+var SHAPES = [
+  "rectangle",
+  "rounded",
+  "stadium",
+  "subroutine",
+  "cylinder",
+  "circle",
+  "flag",
+  "rhombus",
+  "hexagon",
+  "parallelogram"
+];
+var BUILT_IN_KINDS = ["service", "database", "cache", "queue"];
+var DEFAULT_CONFIG = {
+  output: { dir: ".trazo", file: "architecture.md" },
+  kinds: {},
+  extractors: {}
 };
-var KIND_ORDER = ["service", "database", "cache", "queue"];
-var KIND_STROKE = {
-  service: "#2a78d6",
-  database: "#eb6834",
-  cache: "#1baf7a",
-  queue: "#eda100"
+var HEX_COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+var KIND_NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
+function isRecord5(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function parseConfig(content, path) {
+  const fail = (message) => {
+    throw new Error(`Invalid config ${path}: ${message}`);
+  };
+  let document;
+  try {
+    document = (0, import_yaml4.parse)(content);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+  const config = structuredClone(DEFAULT_CONFIG);
+  if (document === null || document === void 0) return config;
+  if (!isRecord5(document)) return fail("expected a mapping at the top level.");
+  const known = ["output", "kinds", "extractors"];
+  for (const key of Object.keys(document)) {
+    if (!known.includes(key)) fail(`unknown key "${key}" (expected ${known.join(", ")}).`);
+  }
+  const output = document["output"];
+  if (output !== void 0 && output !== null) {
+    if (!isRecord5(output)) return fail(`"output" must be a mapping.`);
+    for (const key of Object.keys(output)) {
+      if (key !== "dir" && key !== "file") fail(`unknown key "output.${key}" (expected dir, file).`);
+    }
+    const { dir, file } = output;
+    if (dir !== void 0) {
+      if (typeof dir !== "string" || dir === "" || /^([/\\]|[A-Za-z]:)/.test(dir) || dir.split(/[/\\]/).includes("..")) {
+        fail(`"output.dir" must be a directory inside the project, relative to it.`);
+      }
+      config.output.dir = dir.replace(/\\/g, "/").replace(/\/+$/, "") || ".";
+    }
+    if (file !== void 0) {
+      if (typeof file !== "string" || file === "" || /[/\\]/.test(file)) {
+        fail(`"output.file" must be a file name, without a directory.`);
+      }
+      config.output.file = file;
+    }
+  }
+  const kinds = document["kinds"];
+  if (kinds !== void 0 && kinds !== null) {
+    if (!isRecord5(kinds)) return fail(`"kinds" must be a mapping of kind name to style.`);
+    for (const [name, raw] of Object.entries(kinds)) {
+      if (!KIND_NAME.test(name)) fail(`kind "${name}" must start with a letter and use only letters, digits and _.`);
+      if (raw !== null && !isRecord5(raw)) fail(`"kinds.${name}" must be a mapping (shape, stroke, fill).`);
+      const style = {};
+      for (const [key, value] of Object.entries(isRecord5(raw) ? raw : {})) {
+        if (key === "shape") {
+          if (!SHAPES.includes(value)) fail(`"kinds.${name}.shape" must be one of ${SHAPES.join(", ")}.`);
+          style.shape = value;
+        } else if (key === "stroke" || key === "fill") {
+          if (typeof value !== "string" || !HEX_COLOR.test(value)) {
+            fail(`"kinds.${name}.${key}" must be a hex colour such as #2a78d6.`);
+          }
+          style[key] = value;
+        } else {
+          fail(`unknown key "kinds.${name}.${key}" (expected shape, stroke, fill).`);
+        }
+      }
+      config.kinds[name] = style;
+    }
+  }
+  const extractors = document["extractors"];
+  if (extractors !== void 0 && extractors !== null) {
+    if (!isRecord5(extractors)) return fail(`"extractors" must be a mapping of extractor name to rules.`);
+    const names = defaultExtractors.map((extractor) => extractor.name);
+    const allowed = /* @__PURE__ */ new Set([...BUILT_IN_KINDS, ...Object.keys(config.kinds), IGNORE]);
+    for (const [name, raw] of Object.entries(extractors)) {
+      if (!names.includes(name)) fail(`unknown extractor "${name}" (expected ${names.join(", ")}).`);
+      if (raw !== null && !isRecord5(raw)) fail(`"extractors.${name}" must be a mapping of what to recognise to the kind it becomes.`);
+      const rules = {};
+      for (const [key, kind] of Object.entries(isRecord5(raw) ? raw : {})) {
+        if (typeof kind !== "string" || !allowed.has(kind)) {
+          fail(`"extractors.${name}.${key}" must be ${IGNORE}, a built-in kind or one defined under "kinds" (got ${JSON.stringify(kind)}).`);
+        }
+        rules[key] = kind;
+      }
+      config.extractors[name] = rules;
+    }
+  }
+  return config;
+}
+var SHAPES2 = {
+  rectangle: (label) => `["${label}"]`,
+  rounded: (label) => `("${label}")`,
+  stadium: (label) => `(["${label}"])`,
+  subroutine: (label) => `[["${label}"]]`,
+  cylinder: (label) => `[("${label}")]`,
+  circle: (label) => `(("${label}"))`,
+  flag: (label) => `>"${label}"]`,
+  rhombus: (label) => `{"${label}"}`,
+  hexagon: (label) => `{{"${label}"}}`,
+  parallelogram: (label) => `[/"${label}"/]`
 };
-var KIND_FILL = {
-  service: "#e5effa",
-  database: "#fdede7",
-  cache: "#e4f5ef",
-  queue: "#fdf4e0"
+var BUILT_IN_STYLES = {
+  service: { shape: "rectangle", stroke: "#2a78d6", fill: "#e5effa" },
+  database: { shape: "cylinder", stroke: "#eb6834", fill: "#fdede7" },
+  cache: { shape: "stadium", stroke: "#1baf7a", fill: "#e4f5ef" },
+  queue: { shape: "flag", stroke: "#eda100", fill: "#fdf4e0" }
 };
+var NEUTRAL_STYLE = { shape: "rectangle", stroke: "#6b7280", fill: "#f3f4f6" };
+var KIND_ORDER = Object.keys(BUILT_IN_STYLES);
+function styleOf(kind, overrides) {
+  return { ...BUILT_IN_STYLES[kind] ?? NEUTRAL_STYLE, ...overrides?.[kind] };
+}
 var TEXT_COLOR = "#1a1a1a";
 var ADDED_STROKE = "#2da44e";
 var ADDED_FILL = "#e6f4ea";
@@ -7890,7 +8032,7 @@ function toMermaid(model, options = {}) {
   const ids = assignIds(model.nodes);
   const lines = [INIT_DIRECTIVE, "flowchart LR"];
   for (const node of model.nodes) {
-    lines.push(`  ${ids.get(node.id)}${SHAPES[node.kind](escapeLabel(node.name))}`);
+    lines.push(`  ${ids.get(node.id)}${SHAPES2[styleOf(node.kind, options.kinds).shape](escapeLabel(node.name))}`);
   }
   for (const edge of model.edges) {
     const from = ids.get(edge.from);
@@ -7898,11 +8040,13 @@ function toMermaid(model, options = {}) {
     if (from && to) lines.push(`  ${from} --> ${to}`);
   }
   const addedIds = new Set(options.added ?? []);
-  for (const kind of KIND_ORDER) {
+  const customKinds = [...new Set(model.nodes.map((node) => node.kind))].filter((kind) => !KIND_ORDER.includes(kind)).sort();
+  for (const kind of [...KIND_ORDER, ...customKinds]) {
+    const style = styleOf(kind, options.kinds);
     const kindIds = model.nodes.filter((node) => node.kind === kind && !addedIds.has(node.id)).flatMap((node) => ids.get(node.id) ?? []);
     if (kindIds.length === 0) continue;
     lines.push(
-      `  classDef kind_${kind} fill:${KIND_FILL[kind]},stroke:${KIND_STROKE[kind]},stroke-width:2px,color:${TEXT_COLOR}`
+      `  classDef kind_${kind} fill:${style.fill},stroke:${style.stroke},stroke-width:2px,color:${TEXT_COLOR}`
     );
     lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
   }
@@ -7922,7 +8066,7 @@ var REPORT_MARKER = "<!-- trazo-report -->";
 function section(title, items) {
   return items.length === 0 ? [] : [`### ${title}`, "", ...items.map((item) => `- ${item}`), ""];
 }
-function renderDiffMarkdown(diff, after) {
+function renderDiffMarkdown(diff, after, kinds) {
   const lines = [REPORT_MARKER, "## Trazo: architecture changes", ""];
   if (isEmptyDiff(diff)) {
     lines.push("No architecture changes detected.");
@@ -7953,16 +8097,31 @@ function renderDiffMarkdown(diff, after) {
     "### Resulting architecture",
     "",
     "```mermaid",
-    toMermaid(after, { added: new Set(diff.addedNodes.map((node) => node.id)) }),
+    toMermaid(after, { added: new Set(diff.addedNodes.map((node) => node.id)), ...kinds && { kinds } }),
     "```"
   );
   return lines.join("\n");
 }
 
-// ../cli/dist/chunk-PLXU7NR3.js
-var import_child_process = require("child_process");
+// ../cli/dist/chunk-YHO34MXD.js
 var import_fs = require("fs");
 var import_path = require("path");
+var import_child_process = require("child_process");
+var import_fs2 = require("fs");
+var import_path2 = require("path");
+var CONFIG_FILES = ["trazo.config.yaml", "trazo.config.yml"];
+function loadConfig(root, explicitPath) {
+  if (explicitPath !== void 0) {
+    const path = (0, import_path.resolve)(root, explicitPath);
+    if (!(0, import_fs.existsSync)(path)) throw new Error(`Config file not found: ${explicitPath}`);
+    return parseConfig((0, import_fs.readFileSync)(path, "utf8"), explicitPath);
+  }
+  for (const name of CONFIG_FILES) {
+    const path = (0, import_path.join)(root, name);
+    if ((0, import_fs.existsSync)(path)) return parseConfig((0, import_fs.readFileSync)(path, "utf8"), name);
+  }
+  return structuredClone(DEFAULT_CONFIG);
+}
 var IGNORED_DIRECTORIES = /* @__PURE__ */ new Set([
   "node_modules",
   ".git",
@@ -7979,12 +8138,12 @@ var isSupported = (path) => defaultExtractors.some((extractor) => extractor.matc
 function collectWorkingTree(root) {
   const files = [];
   const walk = (relativeDir) => {
-    for (const entry of (0, import_fs.readdirSync)((0, import_path.join)(root, relativeDir), { withFileTypes: true })) {
+    for (const entry of (0, import_fs2.readdirSync)((0, import_path2.join)(root, relativeDir), { withFileTypes: true })) {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         if (!IGNORED_DIRECTORIES.has(entry.name)) walk(relativePath);
-      } else if (entry.isFile() && isSupported(relativePath) && (0, import_fs.statSync)((0, import_path.join)(root, relativePath)).size <= MAX_FILE_BYTES) {
-        files.push({ path: relativePath, content: (0, import_fs.readFileSync)((0, import_path.join)(root, relativePath), "utf8") });
+      } else if (entry.isFile() && isSupported(relativePath) && (0, import_fs2.statSync)((0, import_path2.join)(root, relativePath)).size <= MAX_FILE_BYTES) {
+        files.push({ path: relativePath, content: (0, import_fs2.readFileSync)((0, import_path2.join)(root, relativePath), "utf8") });
       }
     }
   };
@@ -8038,8 +8197,9 @@ async function runAction(env = process.env, log = console.log) {
     return;
   }
   const workspace = env["GITHUB_WORKSPACE"] ?? process.cwd();
-  const before = extractModel(collectAtRef(workspace, pullRequest.base.sha));
-  const after = extractModel(collectWorkingTree(workspace));
+  const config = loadConfig(workspace);
+  const before = extractModel(collectAtRef(workspace, pullRequest.base.sha), defaultExtractors, config);
+  const after = extractModel(collectWorkingTree(workspace), defaultExtractors, config);
   const diff = diffModels(before, after);
   const apiUrl = env["GITHUB_API_URL"] ?? "https://api.github.com";
   const commentsPath = `/repos/${repository}/issues/${pullRequest.number}/comments`;
@@ -8049,7 +8209,7 @@ async function runAction(env = process.env, log = console.log) {
     log("No architecture changes, no comment posted.");
     return;
   }
-  const body = renderDiffMarkdown(diff, after);
+  const body = renderDiffMarkdown(diff, after, config.kinds);
   if (existing) {
     await github(apiUrl, token, "PATCH", `/repos/${repository}/issues/comments/${existing.id}`, { body });
   } else {

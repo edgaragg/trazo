@@ -1,8 +1,9 @@
 /**
  * Broad category of a component. It only drives how the component is drawn,
- * so extractors should classify by best effort rather than exactness.
+ * so extractors should classify by best effort rather than exactness. The four built-in
+ * kinds are always drawn; any other name is a custom kind defined in the config file.
  */
-export type NodeKind = "service" | "database" | "cache" | "queue";
+export type NodeKind = "service" | "database" | "cache" | "queue" | (string & {});
 
 /** A component of the system, such as a service, a database or a message queue. */
 export interface ArchNode {

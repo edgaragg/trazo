@@ -1,16 +1,28 @@
+import type { KindStyle, Shape } from "./config.js";
 import type { ArchitectureModel, ArchNode, NodeKind } from "./model.js";
 
 /** Options for {@link toMermaid}. */
 export interface MermaidOptions {
   /** Ids of components to draw with a highlighted border, typically the ones a PR adds. */
   added?: ReadonlySet<string>;
+  /**
+   * How to draw each kind, on top of the built-in look: a built-in kind keeps whatever the entry
+   * leaves out, and a custom kind starts from the plain neutral style.
+   */
+  kinds?: Readonly<Record<string, Partial<KindStyle>>>;
 }
 
-const SHAPES: Record<NodeKind, (label: string) => string> = {
-  service: (label) => `["${label}"]`,
-  database: (label) => `[("${label}")]`,
-  cache: (label) => `(["${label}"])`,
-  queue: (label) => `>"${label}"]`,
+const SHAPES: Record<Shape, (label: string) => string> = {
+  rectangle: (label) => `["${label}"]`,
+  rounded: (label) => `("${label}")`,
+  stadium: (label) => `(["${label}"])`,
+  subroutine: (label) => `[["${label}"]]`,
+  cylinder: (label) => `[("${label}")]`,
+  circle: (label) => `(("${label}"))`,
+  flag: (label) => `>"${label}"]`,
+  rhombus: (label) => `{"${label}"}`,
+  hexagon: (label) => `{{"${label}"}}`,
+  parallelogram: (label) => `[/"${label}"/]`,
 };
 
 // Border colour per kind, on top of the shape each already has. Strokes are the first four
@@ -22,19 +34,19 @@ const SHAPES: Record<NodeKind, (label: string) => string> = {
 // colours are one static set baked into the diagram, not adapted to the viewer's light/dark
 // GitHub theme, since a rendered Mermaid SVG can't detect that — the light fills are what makes
 // that safe to do: a light box reads fine on either a light or a dark page.
-const KIND_ORDER: readonly NodeKind[] = ["service", "database", "cache", "queue"];
-const KIND_STROKE: Record<NodeKind, string> = {
-  service: "#2a78d6",
-  database: "#eb6834",
-  cache: "#1baf7a",
-  queue: "#eda100",
+const BUILT_IN_STYLES: Record<string, KindStyle> = {
+  service: { shape: "rectangle", stroke: "#2a78d6", fill: "#e5effa" },
+  database: { shape: "cylinder", stroke: "#eb6834", fill: "#fdede7" },
+  cache: { shape: "stadium", stroke: "#1baf7a", fill: "#e4f5ef" },
+  queue: { shape: "flag", stroke: "#eda100", fill: "#fdf4e0" },
 };
-const KIND_FILL: Record<NodeKind, string> = {
-  service: "#e5effa",
-  database: "#fdede7",
-  cache: "#e4f5ef",
-  queue: "#fdf4e0",
-};
+// A kind nobody styled: neutral grey, so it reads as "not one of the known kinds" rather than as one of them.
+const NEUTRAL_STYLE: KindStyle = { shape: "rectangle", stroke: "#6b7280", fill: "#f3f4f6" };
+const KIND_ORDER = Object.keys(BUILT_IN_STYLES);
+
+function styleOf(kind: NodeKind, overrides: MermaidOptions["kinds"]): KindStyle {
+  return { ...(BUILT_IN_STYLES[kind] ?? NEUTRAL_STYLE), ...overrides?.[kind] };
+}
 const TEXT_COLOR = "#1a1a1a";
 const ADDED_STROKE = "#2da44e";
 const ADDED_FILL = "#e6f4ea";
@@ -74,9 +86,9 @@ function assignIds(nodes: readonly ArchNode[]): Map<string, string> {
 
 /**
  * Renders a model as a Mermaid `flowchart`, which GitHub draws natively in
- * Markdown. Databases are cylinders, caches are stadiums and queues use the
- * asymmetric flag shape, each also bordered in its own colour. The output is
- * stable for equal models.
+ * Markdown. By default databases are cylinders, caches are stadiums and queues
+ * use the asymmetric flag shape, each also bordered in its own colour; `options.kinds` changes
+ * that and defines custom kinds. The output is stable for equal models.
  *
  * A component in `options.added` is bordered green instead of its kind's colour — being new
  * is the more useful signal in a diff, so it takes priority; the shape still shows its kind.
@@ -88,7 +100,7 @@ export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}
   const lines = [INIT_DIRECTIVE, "flowchart LR"];
 
   for (const node of model.nodes) {
-    lines.push(`  ${ids.get(node.id)}${SHAPES[node.kind](escapeLabel(node.name))}`);
+    lines.push(`  ${ids.get(node.id)}${SHAPES[styleOf(node.kind, options.kinds).shape](escapeLabel(node.name))}`);
   }
   for (const edge of model.edges) {
     const from = ids.get(edge.from);
@@ -101,13 +113,16 @@ export function toMermaid(model: ArchitectureModel, options: MermaidOptions = {}
   // A node gets exactly one class: "added" wins over its kind's colour, so the two classDefs
   // never have to be merged on the same node — Mermaid's rule for combining two classes on one
   // node isn't something to depend on when a single, unambiguous style says the same thing.
-  for (const kind of KIND_ORDER) {
+  // Built-in kinds first, in a fixed order, then any custom ones alphabetically, so output stays stable.
+  const customKinds = [...new Set(model.nodes.map((node) => node.kind))].filter((kind) => !KIND_ORDER.includes(kind)).sort();
+  for (const kind of [...KIND_ORDER, ...customKinds]) {
+    const style = styleOf(kind, options.kinds);
     const kindIds = model.nodes
       .filter((node) => node.kind === kind && !addedIds.has(node.id))
       .flatMap((node) => ids.get(node.id) ?? []);
     if (kindIds.length === 0) continue;
     lines.push(
-      `  classDef kind_${kind} fill:${KIND_FILL[kind]},stroke:${KIND_STROKE[kind]},stroke-width:2px,color:${TEXT_COLOR}`,
+      `  classDef kind_${kind} fill:${style.fill},stroke:${style.stroke},stroke-width:2px,color:${TEXT_COLOR}`,
     );
     lines.push(`  class ${kindIds.join(",")} kind_${kind}`);
   }

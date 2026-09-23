@@ -21,3 +21,5 @@ export { kubernetesExtractor } from "./kubernetes.js";
 export { cloudFormationExtractor } from "./cloudformation.js";
 export { amplifyExtractor } from "./amplify.js";
 export type { Extractor, SourceFile } from "./types.js";
+export { IGNORE } from "./rules.js";
+export type { ExtractOptions, KindRules } from "./rules.js";

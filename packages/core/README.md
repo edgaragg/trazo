@@ -22,4 +22,6 @@ console.log(renderDiffMarkdown(diffModels(before, after), after)); // what chang
 
 Files are passed in as `{ path, content }`, with paths relative to the scanned root. Docker Compose files, Kubernetes manifests, CloudFormation / SAM templates and AWS Amplify (Gen 1) backends are recognised; see the [main README](https://github.com/edgaragg/trazo#readme) for what is detected and what is not.
 
+Configuration is passed in too: `parseConfig(yamlText, path)` validates a `trazo.config.yaml`, and its `extractors` section is the third argument of `extractModel` while `kinds` goes to `toMermaid`, `renderDiffMarkdown` and `renderArchitectureMarkdown`. See [Configuration](https://github.com/edgaragg/trazo#configuration).
+
 Requires Node.js 20 or later. MIT licensed.

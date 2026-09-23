@@ -1,5 +1,6 @@
 import { isAlias, isMap, isScalar, isSeq, parseDocument, type Document } from "yaml";
 import type { ArchEdge, ArchNode, NodeKind } from "../model.js";
+import { IGNORE, ruleFor, type KindRules } from "./rules.js";
 import type { Extractor, SourceFile } from "./types.js";
 
 /** A parsed template value, with intrinsic functions already in their long form (`{ Ref: "X" }`). */
@@ -28,7 +29,11 @@ const KINDS: ReadonlyArray<readonly [RegExp, NodeKind]> = [
   ],
 ];
 
-const kindOf = (type: string): NodeKind | undefined => KINDS.find(([pattern]) => pattern.test(type))?.[1];
+/** The kind a resource type is drawn as; undefined when it is not a component. */
+function kindOf(type: string, rules: KindRules | undefined): NodeKind | undefined {
+  const kind = ruleFor(rules, type) ?? KINDS.find(([pattern]) => pattern.test(type))?.[1];
+  return kind === IGNORE ? undefined : kind;
+}
 
 function isRecord(value: unknown): value is Record<string, Json> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -196,6 +201,10 @@ const IMPLICIT_APIS: Record<string, { logicalId: string; type: string; property:
  * `ServerlessRestApi` / `ServerlessHttpApi` SAM creates for them. Other stacks, parameter values
  * and `Fn::ImportValue` are not followed, and S3 buckets are drawn as databases.
  *
+ * The user's rules are keyed by resource type, with `*` as a wildcard. They choose the kind a type
+ * is drawn as — including types this extractor doesn't know, such as `Custom::Thing` — or `ignore`
+ * to stop drawing it, in which case it is looked through like any resource that isn't a component.
+ *
  * Matches every JSON, YAML and `.template` file outside an Amplify backend, and reads as empty
  * whatever isn't a template. Component ids include the file's path, since two templates commonly
  * reuse a logical id.
@@ -205,7 +214,7 @@ export const cloudFormationExtractor: Extractor = {
 
   matches: (path) => TEMPLATE_FILE.test(path) && !AMPLIFY_TREE.test(path),
 
-  extract(file) {
+  extract(file, options) {
     const raw = readResources(file);
     if (!raw) return { nodes: [], edges: [] };
 
@@ -219,7 +228,7 @@ export const cloudFormationExtractor: Extractor = {
 
     const nodes = new Map<string, ArchNode>();
     const addNode = (logicalId: string, type: string) => {
-      const kind = kindOf(type);
+      const kind = kindOf(type, options?.rules);
       if (kind) nodes.set(logicalId, { id: id(logicalId), name: logicalId, kind, source: file.path, type });
     };
     for (const [logicalId, { type }] of resources) addNode(logicalId, type);

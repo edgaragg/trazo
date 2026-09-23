@@ -1,5 +1,6 @@
 import { code, describeNode } from "./markdown.js";
 import { toMermaid } from "./mermaid.js";
+import type { KindStyle } from "./config.js";
 import type { ArchitectureModel } from "./model.js";
 
 /**
@@ -15,8 +16,13 @@ export const ARCHITECTURE_MARKER = "<!-- trazo-architecture -->";
  * no notion of a previous revision: it always describes `model` in full.
  *
  * The document always starts with {@link ARCHITECTURE_MARKER}.
+ *
+ * @param kinds - How to draw each kind of component, as in {@link toMermaid}.
  */
-export function renderArchitectureMarkdown(model: ArchitectureModel): string {
+export function renderArchitectureMarkdown(
+  model: ArchitectureModel,
+  kinds?: Readonly<Record<string, Partial<KindStyle>>>,
+): string {
   const lines = [
     ARCHITECTURE_MARKER,
     "# Architecture",
@@ -30,7 +36,7 @@ export function renderArchitectureMarkdown(model: ArchitectureModel): string {
     return lines.join("\n");
   }
 
-  lines.push("```mermaid", toMermaid(model), "```", "", "## Components", "");
+  lines.push("```mermaid", toMermaid(model, { ...(kinds && { kinds }) }), "```", "", "## Components", "");
   for (const node of model.nodes) lines.push(`- ${describeNode(node)}`);
 
   if (model.edges.length > 0) {

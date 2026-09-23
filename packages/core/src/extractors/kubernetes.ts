@@ -1,6 +1,7 @@
 import { parseAllDocuments } from "yaml";
 import type { ArchEdge, ArchNode } from "../model.js";
 import { classifyImage } from "./classify.js";
+import { IGNORE, ruleFor } from "./rules.js";
 import type { Extractor } from "./types.js";
 
 /** Kinds that run containers. Each one becomes an architecture component. */
@@ -157,7 +158,7 @@ export const kubernetesExtractor: Extractor = {
 
   matches: (path) => /\.ya?ml$/.test(path),
 
-  extract(file) {
+  extract(file, options) {
     const resources = parseDocuments(file.content, file.path)
       .map(parseResource)
       .filter((resource): resource is Resource => resource !== undefined);
@@ -170,10 +171,12 @@ export const kubernetesExtractor: Extractor = {
 
     for (const resource of resources) {
       if (WORKLOAD_KINDS.has(resource.kind)) {
+        const kind = ruleFor(options?.rules, resource.kind) ?? classifyImage(resource.image, options?.rules);
+        if (kind === IGNORE) continue;
         nodes.push({
           id: id(resource),
           name: resource.name,
-          kind: classifyImage(resource.image),
+          kind,
           source: file.path,
           ...(resource.image !== undefined && { image: resource.image }),
         });
@@ -184,7 +187,9 @@ export const kubernetesExtractor: Extractor = {
           selector: stringEntries(resource.spec["selector"]),
         });
       } else if (resource.kind === "Ingress") {
-        nodes.push({ id: id(resource), name: resource.name, kind: "service", source: file.path });
+        const kind = ruleFor(options?.rules, "Ingress") ?? "service";
+        if (kind === IGNORE) continue;
+        nodes.push({ id: id(resource), name: resource.name, kind, source: file.path });
         ingresses.push({ namespace: resource.namespace, name: resource.name, backends: ingressBackends(resource.spec) });
       }
     }
