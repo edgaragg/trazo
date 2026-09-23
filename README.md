@@ -51,6 +51,55 @@ Databases, caches and queues are recognised from their image and drawn with thei
 
 Trazo also reads Kubernetes manifests ([`examples/kubernetes/app.yaml`](examples/kubernetes/app.yaml)): Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Pods each become a component, and an Ingress is linked to the workload its backend Service selects.
 
+## Installation
+
+Trazo needs [Node.js](https://nodejs.org) 20 or later. It is published as two packages under the `@edgaragg` scope.
+
+### Command line
+
+Run it without installing anything:
+
+```bash
+npx @edgaragg/trazo-cli generate
+```
+
+Or install it globally. The command is called `trazo`, whatever the package is called:
+
+```bash
+npm install -g @edgaragg/trazo-cli
+trazo --help
+```
+
+Or add it to a project, so everyone who works on it gets the same version:
+
+```bash
+npm install --save-dev @edgaragg/trazo-cli
+npx trazo generate
+```
+
+### Library
+
+To build your own tooling on the same model, install the engine on its own:
+
+```bash
+npm install @edgaragg/trazo-core
+```
+
+See the [package README](packages/core/README.md) for an example.
+
+### In CI
+
+Nothing to install by hand. On GitHub, add the [Action](#as-a-github-action); on Bitbucket, add the [Pipelines step](#as-a-bitbucket-pipelines-step), which runs `npx @edgaragg/trazo-cli bitbucket-comment`.
+
+### Updating and removing
+
+```bash
+npm update -g @edgaragg/trazo-cli      # update a global install
+npm uninstall -g @edgaragg/trazo-cli   # remove it
+```
+
+Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.1.0 ...`) instead of following whatever is newest.
+
 ## Usage
 
 ### As a GitHub Action
@@ -98,12 +147,7 @@ Unlike GitHub Actions, Bitbucket doesn't hand a pipeline a token that can write 
 
 ### As a command line tool
 
-Run it without installing, or install it once — the command is called `trazo` either way:
-
-```bash
-npx @edgaragg/trazo-cli generate
-npm install -g @edgaragg/trazo-cli   # then just: trazo generate
-```
+See [Installation](#installation) for how to get the `trazo` command.
 
 ```bash
 trazo generate [dir]                                   # print the architecture as a Mermaid diagram
