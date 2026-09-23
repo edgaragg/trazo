@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run } from "../src/index.js";
 
@@ -24,7 +24,10 @@ async function cli(...args: string[]) {
     cwd: dir,
     out: (text) => (out += text),
     err: (text) => (err += text),
-    writeFile: (path, content) => writeFileSync(path, content),
+    writeFile: (path, content) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, content);
+    },
     vars,
   });
   return { code, out, err };
@@ -259,5 +262,124 @@ describe("trazo", () => {
     expect(help).toContain("Usage:");
     expect(help).toContain("bitbucket-comment");
     expect((await cli("nope")).code).toBe(1);
+  });
+});
+
+describe("trazo.config.yaml", () => {
+  const compose = "services:\n  api:\n    depends_on: [files]\n  files:\n    image: minio/minio\n";
+
+  it("writes the document to .trazo/architecture.md with --write, without any config", async () => {
+    write("docker-compose.yml", compose);
+    const { code, out } = await cli("generate", "--write");
+
+    expect(code).toBe(0);
+    expect(out).toBe("");
+    expect(readFileSync(join(dir, ".trazo", "architecture.md"), "utf8")).toContain("<!-- trazo-architecture -->");
+  });
+
+  it("writes where output.dir and output.file say, relative to the scanned directory", async () => {
+    write("app/docker-compose.yml", compose);
+    write("app/trazo.config.yaml", "output:\n  dir: docs/arch\n  file: system.md\n");
+    const { code } = await cli("generate", "app", "--write");
+
+    expect(code).toBe(0);
+    expect(existsSync(join(dir, "app", "docs", "arch", "system.md"))).toBe(true);
+    expect(existsSync(join(dir, ".trazo"))).toBe(false);
+  });
+
+  it("does not let --write be mixed with --out or another format", async () => {
+    write("docker-compose.yml", compose);
+    expect((await cli("generate", "--write", "--out", "x.md")).code).toBe(1);
+    expect((await cli("generate", "--write", "--format", "json")).err).toContain("--write always writes the Markdown");
+    expect((await cli("generate", "--write", "--format", "markdown")).code).toBe(0);
+  });
+
+  it("with --write, writes a document saying so instead of failing when nothing is found", async () => {
+    const { code } = await cli("generate", "--write");
+
+    expect(code).toBe(0);
+    expect(readFileSync(join(dir, ".trazo", "architecture.md"), "utf8")).toContain("No supported infrastructure files");
+  });
+
+  it("applies the extractor rules and the kind styles", async () => {
+    write("docker-compose.yml", compose);
+    write(
+      "trazo.config.yaml",
+      "kinds:\n  storage:\n    shape: hexagon\n    stroke: '#112233'\nextractors:\n  docker-compose:\n    minio: storage\n",
+    );
+    const { out } = await cli("generate");
+
+    expect(out).toContain('n_files{{"files"}}');
+    expect(out).toContain("classDef kind_storage fill:#f3f4f6,stroke:#112233");
+  });
+
+  it("also reads trazo.config.yml", async () => {
+    write("docker-compose.yml", compose);
+    write("trazo.config.yml", "extractors:\n  docker-compose:\n    minio: ignore\n");
+
+    expect((await cli("generate", "--format", "json")).out).not.toContain("files");
+  });
+
+  it("uses the file named by --config, resolved against the scanned directory", async () => {
+    write("docker-compose.yml", compose);
+    write("ci/trazo.yaml", "extractors:\n  docker-compose:\n    minio: ignore\n");
+
+    expect((await cli("generate", "--format", "json", "--config", "ci/trazo.yaml")).out).not.toContain("files");
+    const missing = await cli("generate", "--config", "nope.yaml");
+    expect(missing.code).toBe(1);
+    expect(missing.err).toContain("Config file not found: nope.yaml");
+  });
+
+  it("reports an invalid config instead of guessing", async () => {
+    write("docker-compose.yml", compose);
+    write("trazo.config.yaml", "extractors:\n  terraform: {}\n");
+    const { code, err } = await cli("generate");
+
+    expect(code).toBe(1);
+    expect(err).toContain('Invalid config trazo.config.yaml: unknown extractor "terraform"');
+  });
+
+  it("applies the same config to both sides of a diff, so changing it is not an architecture change", async () => {
+    git("init", "-q", "-b", "main");
+    write("docker-compose.yml", compose);
+    write("trazo.config.yaml", "extractors:\n  docker-compose:\n    minio: ignore\n");
+    git("add", ".");
+    git("commit", "-q", "-m", "base");
+
+    write("trazo.config.yaml", "extractors:\n  docker-compose:\n    minio: storage\nkinds:\n  storage: {}\n");
+    const { out } = await cli("diff", "--base", "main");
+    expect(out).toContain("No architecture changes detected.");
+  });
+
+  it("does not treat the config file as infrastructure", async () => {
+    write("trazo.config.yaml", "kinds:\n  storage: {}\n");
+    const { code, err } = await cli("generate");
+
+    expect(code).toBe(1);
+    expect(err).toContain("no supported infrastructure files found");
+  });
+
+  const SERVICE = "services:\n  api: {}\n";
+
+  it.each([
+    [["generate", "--write"], ".trazo/architecture.md", "trazo generate --write"],
+    [["generate", "app", "--write"], "app/.trazo/architecture.md", "trazo generate app --write"],
+    [["generate", "--write", "--config", "ci/trazo.yaml"], ".trazo/architecture.md", "trazo generate --write --config ci/trazo.yaml"],
+    [["generate", "--format", "markdown", "--out", "docs/arq.md"], "docs/arq.md", "trazo generate --format markdown --out docs/arq.md"],
+    [["generate", "app", "--format", "markdown", "--out", "my docs/a.md"], "my docs/a.md", 'trazo generate app --format markdown --out "my docs/a.md"'],
+  ])("names the command that rewrites the document it wrote: %j", async (args, file, command) => {
+    write("docker-compose.yml", SERVICE);
+    write("app/docker-compose.yml", SERVICE);
+    write("ci/trazo.yaml", "");
+    expect((await cli(...args)).code).toBe(0);
+
+    expect(readFileSync(join(dir, file), "utf8")).toContain(`regenerate it with \`${command}\`.`);
+  });
+
+  it("names the command when the document is printed instead of written", async () => {
+    write("docker-compose.yml", SERVICE);
+    const { out } = await cli("generate", "--format", "markdown");
+
+    expect(out).toContain("regenerate it with `trazo generate --format markdown`.");
   });
 });

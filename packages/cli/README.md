@@ -14,9 +14,12 @@ npm install -g @edgaragg/trazo-cli   # then just: trazo generate
 ```bash
 trazo generate                                          # print a Mermaid diagram of the current directory
 trazo generate --format markdown --out ARCHITECTURE.md  # or a full document, written to a file
+trazo generate --write                                  # or written to .trazo/architecture.md
 trazo diff --base main                                  # what changed since a git revision
 trazo bitbucket-comment                                 # post that report on a Bitbucket pull request
 ```
+
+A `trazo.config.yaml` in the scanned directory changes where `--write` puts the document, how components are drawn, and what each extractor's findings become; see the [main README](https://github.com/edgaragg/trazo#configuration).
 
 `trazo diff` reads the base revision straight from git, so it never touches your working tree. In CI it needs the full history (`fetch-depth: 0` on GitHub Actions, `clone: depth: full` on Bitbucket).
 

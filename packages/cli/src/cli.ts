@@ -1,6 +1,7 @@
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  defaultExtractors,
   diffModels,
   extractModel,
   renderArchitectureMarkdown,
@@ -8,6 +9,7 @@ import {
   toMermaid,
 } from "@edgaragg/trazo-core";
 import { runBitbucketComment } from "./bitbucket.js";
+import { loadConfig } from "./config.js";
 import { collectAtRef, collectWorkingTree } from "./sources.js";
 
 /** Where the CLI reads its context from and writes its output to. Injected so it can be tested. */
@@ -26,6 +28,7 @@ const HELP = `trazo - keep your architecture diagrams honest
 
 Usage:
   trazo generate [dir]            Print the architecture found under dir (default: .)
+  trazo generate --write          Write it as a Markdown document into the configured folder (default: .trazo)
   trazo diff [dir] --base <ref>   Print what changed since a git revision
   trazo bitbucket-comment         Post the report on a Bitbucket pull request (run from Bitbucket Pipelines)
 
@@ -34,9 +37,31 @@ Options:
   -f, --format <name>  generate: mermaid | json | markdown (default mermaid)
                        diff: markdown | json (default markdown)
   -o, --out <path>     Write the output to a file instead of stdout (generate only)
+  -w, --write          Write the Markdown document to output.dir/output.file of the config (generate only)
+  -c, --config <path>  Config file to use instead of trazo.config.yaml in dir
   -h, --help           Show this help
 
 See the README for the list of supported infrastructure files.`;
+
+const quoted = (text: string) => (/\s/.test(text) ? `"${text}"` : text);
+
+/**
+ * The command that reproduces a `generate` run that writes a Markdown document, for the header of
+ * that document. It repeats the directory, output and config the way they were given, so following it
+ * rewrites the same file instead of creating another.
+ */
+function regenerateCommand(
+  positionals: readonly string[],
+  values: { write?: boolean | undefined; out?: string | undefined; config?: string | undefined },
+): string {
+  const [, dir] = positionals;
+  return [
+    "trazo generate",
+    ...(dir !== undefined ? [quoted(dir)] : []),
+    ...(values.write ? ["--write"] : ["--format markdown", ...(values.out ? [`--out ${quoted(values.out)}`] : [])]),
+    ...(values.config ? [`--config ${quoted(values.config)}`] : []),
+  ].join(" ");
+}
 
 /**
  * Runs the command line interface.
@@ -57,6 +82,8 @@ export async function run(argv: readonly string[], env: CliEnvironment): Promise
         base: { type: "string", short: "b" },
         format: { type: "string", short: "f" },
         out: { type: "string", short: "o" },
+        write: { type: "boolean", short: "w" },
+        config: { type: "string", short: "c" },
         help: { type: "boolean", short: "h" },
       },
     });
@@ -75,20 +102,27 @@ export async function run(argv: readonly string[], env: CliEnvironment): Promise
         env.err(`trazo: unknown format "${format}" for generate (use mermaid, json or markdown).`);
         return 1;
       }
-      const model = extractModel(collectWorkingTree(root));
+      if (values.write && (values.out || (format !== undefined && format !== "markdown"))) {
+        env.err("trazo: --write always writes the Markdown document; it can't be combined with --out or another --format.");
+        return 1;
+      }
+      const config = loadConfig(root, values.config);
+      const model = extractModel(collectWorkingTree(root), defaultExtractors, config);
       // Without --out this is an interactive/CI check, so an empty result is treated as a
       // mistake. With --out this is usually unattended (regenerating a committed doc on every
       // push), where a repository legitimately having no infrastructure files yet should not
       // fail the job — the file is written showing that, instead.
-      if (model.nodes.length === 0 && !values.out) {
+      if (model.nodes.length === 0 && !values.out && !values.write) {
         env.err("trazo: no supported infrastructure files found.");
         return 1;
       }
       const rendered =
         format === "json" ? JSON.stringify(model, null, 2)
-        : format === "markdown" ? renderArchitectureMarkdown(model)
-        : toMermaid(model);
-      if (values.out) {
+        : format === "markdown" || values.write ? renderArchitectureMarkdown(model, { kinds: config.kinds, command: regenerateCommand(positionals, values) })
+        : toMermaid(model, { kinds: config.kinds });
+      if (values.write) {
+        env.writeFile(join(root, config.output.dir, config.output.file), rendered);
+      } else if (values.out) {
         env.writeFile(resolve(env.cwd, values.out), rendered);
       } else {
         env.out(rendered);
@@ -105,10 +139,11 @@ export async function run(argv: readonly string[], env: CliEnvironment): Promise
         env.err(`trazo: unknown format "${format}" for diff (use markdown or json).`);
         return 1;
       }
-      const before = extractModel(collectAtRef(root, values.base));
-      const after = extractModel(collectWorkingTree(root));
+      const config = loadConfig(root, values.config);
+      const before = extractModel(collectAtRef(root, values.base), defaultExtractors, config);
+      const after = extractModel(collectWorkingTree(root), defaultExtractors, config);
       const diff = diffModels(before, after);
-      env.out(format === "json" ? JSON.stringify(diff, null, 2) : renderDiffMarkdown(diff, after));
+      env.out(format === "json" ? JSON.stringify(diff, null, 2) : renderDiffMarkdown(diff, after, config.kinds));
       return 0;
     }
 

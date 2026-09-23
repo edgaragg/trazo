@@ -100,7 +100,7 @@ npm update -g @edgaragg/trazo-cli      # update a global install
 npm uninstall -g @edgaragg/trazo-cli   # remove it
 ```
 
-Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.1.0 ...`) instead of following whatever is newest.
+Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.2.0 ...`) instead of following whatever is newest.
 
 ## Usage
 
@@ -155,6 +155,7 @@ See [Installation](#installation) for how to get the `trazo` command.
 trazo generate [dir]                                   # print the architecture as a Mermaid diagram
 trazo generate --format json                           # ...or as JSON
 trazo generate --format markdown --out ARCHITECTURE.md # ...or a full doc, written to a file
+trazo generate --write                                 # ...or written to .trazo/architecture.md (see Configuration)
 trazo diff --base main                                 # report what changed since a git revision
 ```
 
@@ -163,6 +164,42 @@ trazo diff --base main                                 # report what changed sin
 ### Keeping a live ARCHITECTURE.md
 
 A file only stays trustworthy if nothing has to remember to update it. [`architecture-doc.yml`](.github/workflows/architecture-doc.yml) regenerates `ARCHITECTURE.md` on every push to `main` and commits it back when it changed — the same principle as the pull request comment, aimed at the repository itself instead of a review. Add it to your own repository, or copy the `trazo generate --format markdown --out ARCHITECTURE.md` step into an existing workflow.
+
+## Configuration
+
+Everything works without a config. To change how Trazo draws things, add a `trazo.config.yaml` (or `.yml`) to the directory you scan, or point to another with `--config <path>`. Every part is optional, and Trazo rejects an unknown key, shape, colour or extractor instead of ignoring it, so a typo can't quietly change your diagram.
+
+```yaml
+output:                      # used by `trazo generate --write`
+  dir: .trazo                # relative to the project (default)
+  file: architecture.md      # default
+
+kinds:                       # how each kind of component is drawn
+  database:
+    stroke: "#c0392b"        # change only what you list on a built-in kind...
+  storage:                   # ...or define your own kind
+    shape: cylinder          # rectangle, rounded, stadium, subroutine, cylinder, circle, flag, rhombus, hexagon, parallelogram
+    stroke: "#0f766e"
+    fill: "#e6f4f1"          # keep it light: labels are drawn in near-black
+
+extractors:                  # what each extractor's findings become
+  cloudformation:            # key: resource type. `*` is a wildcard
+    "AWS::S3::Bucket": storage
+    "Custom::*": service     # a type Trazo doesn't know is drawn too
+    "AWS::ApiGateway::*": ignore
+  amplify:                   # key: service
+    S3: storage
+  docker-compose:            # key: image name, without registry or tag
+    minio: storage
+  kubernetes:                # key: workload kind (Deployment, CronJob, Ingress...) or image name
+    CronJob: ignore
+```
+
+- The built-in kinds are `service`, `database`, `cache` and `queue`. A rule can name one of them, a kind defined under `kinds`, or `ignore`. A kind with no style is drawn as a grey rectangle.
+- Keys match ignoring case; when several match, the most specific wins (`AWS::S3::Bucket` over `AWS::S3::*`). A rule beats the built-in classification.
+- `ignore` leaves the component out, and the dependencies on it. In CloudFormation, references through an ignored resource still count, the way they do through an IAM role.
+- Rules change how something is drawn, never what exists: they can't add a dependency Trazo did not find.
+- `trazo diff`, the GitHub Action and the Bitbucket step read the config from the working tree and apply it to both sides of the comparison, so editing the config doesn't show up as an architecture change.
 
 ## How it works
 
@@ -189,10 +226,8 @@ files → extractor → architecture model → diff against base → Markdown re
 - [ ] A richer ARCHITECTURE.md (components and dependencies are very bare today)
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
-- [ ] A `trazo.config.yaml` to configure the output of `trazo generate`, all of it optional with sensible defaults:
-  - **Output**: a directory relative to the project (default `.trazo`, so one document per source — Compose, each Kubernetes namespace, CloudFormation... — doesn't fill the repository root) and the file name (default `architecture.md`).
-  - **Styles**: the Mermaid shape and style of each kind of component (`service`, `database`, `cache`, `queue`).
-  - **Per-extractor mapping**: for each extractor (`docker-compose`, `kubernetes`, `cloudformation`, `amplify`), which kind each resource type becomes (for example `AWS::S3::Bucket: queue`), or `ignore` to leave that type out of the diagram. Explicit and deterministic, like `.trazoignore`: it changes how something is drawn, never what exists.
+- [x] A [`trazo.config.yaml`](#configuration): where `trazo generate --write` puts the document, how each kind of component is drawn, and which kind each thing an extractor recognises becomes (or `ignore`, or a custom kind)
+- [ ] One document per source (Compose, each Kubernetes namespace, CloudFormation...) under `output.dir`, instead of a single `architecture.md`
 - [ ] A `.trazoignore` file (and/or a CLI `--exclude` flag) to skip specific paths, for files that are illustrative rather than real — a Kubernetes manifest kept purely as a documentation example, for instance. Not solved by guessing from a filename or folder convention like `*.example.yaml`: that always misclassifies someone's setup in one direction or the other. An explicit, deterministic list of paths to skip stays true to "the diagram can't invent things that aren't there" — it also does not invent what to leave out.
 
 ## Limitations
@@ -203,6 +238,7 @@ files → extractor → architecture model → diff against base → Markdown re
 - CloudFormation: a component depends on what it refers to inside the same template. Other stacks (`AWS::CloudFormation::Stack`), `Fn::ImportValue` and values passed as parameters are not followed, and neither is a resource name built by hand into a string. Only resource types that are components are drawn — functions, APIs, tables, buckets, queues, topics, caches and similar; an S3 bucket is drawn as a database, and there is no shape for storage. A reference through a shared IAM role or policy reaches everything that role can use, which is what the function can do rather than what it does.
 - SAM: a function's `Api` or `HttpApi` event that names no API gets the `ServerlessRestApi` / `ServerlessHttpApi` SAM creates for it. `Globals` are not applied. An API whose `DefinitionBody` is an `AWS::Include` of an external OpenAPI file is not resolved, since its integrations live in that file, and the EventBridge rules SAM creates for `CloudWatchEvent` / `EventBridgeRule` events are not drawn.
 - Amplify: only Gen 1 is read, from `backend-config.json`. The CloudFormation Amplify generates under `amplify/backend` is skipped on purpose (every function's template names its resource `LambdaFunction`), which also means what a resource does beyond its `dependsOn` is not visible. Gen 2 defines its backend in TypeScript and is not supported yet.
+- The config is read from the scanned directory only, not merged from parent directories. `trazo generate --write` produces a single document; a document per source is on the roadmap.
 - Directories that only hold build output or a copy of what is deployed are skipped while scanning: `node_modules`, `dist`, `build`, `.aws-sam`, `cdk.out` and Amplify's `#current-cloud-backend`. Naming one as the directory to scan still works. Files over 2 MB are skipped too, since every JSON and YAML file is offered to the CloudFormation reader.
 - The Action can't comment on pull requests from forks, because GitHub gives those runs a read-only token. Bitbucket Pipelines has the same kind of gap from the other direction: by default it doesn't run a pull-request pipeline at all for a pull request opened from a fork, so `trazo bitbucket-comment` never runs on those either.
 

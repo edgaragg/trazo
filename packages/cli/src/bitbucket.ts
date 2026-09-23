@@ -1,4 +1,5 @@
-import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
+import { defaultExtractors, diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
+import { loadConfig } from "./config.js";
 import { collectAtRef, collectWorkingTree } from "./sources.js";
 
 interface BitbucketComment {
@@ -80,8 +81,9 @@ export async function runBitbucketComment(
   }
 
   const clonePath = env["BITBUCKET_CLONE_DIR"] ?? process.cwd();
-  const before = extractModel(collectAtRef(clonePath, baseCommit));
-  const after = extractModel(collectWorkingTree(clonePath));
+  const config = loadConfig(clonePath);
+  const before = extractModel(collectAtRef(clonePath, baseCommit), defaultExtractors, config);
+  const after = extractModel(collectWorkingTree(clonePath), defaultExtractors, config);
   const diff = diffModels(before, after);
 
   const apiUrl = env["TRAZO_BITBUCKET_API_URL"] ?? "https://api.bitbucket.org/2.0";
@@ -94,7 +96,7 @@ export async function runBitbucketComment(
     return;
   }
 
-  const raw = renderDiffMarkdown(diff, after);
+  const raw = renderDiffMarkdown(diff, after, config.kinds);
   if (existing) {
     await bitbucket(token, "PUT", `${commentsUrl}/${existing.id}`, { content: { raw } });
   } else {

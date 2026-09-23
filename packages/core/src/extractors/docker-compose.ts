@@ -1,6 +1,7 @@
 import { parse } from "yaml";
 import type { ArchEdge, ArchNode } from "../model.js";
 import { classifyImage } from "./classify.js";
+import { IGNORE } from "./rules.js";
 import type { Extractor } from "./types.js";
 
 const COMPOSE_FILE = /(^|\/)(docker-)?compose(\.[\w-]+)?\.ya?ml$/;
@@ -33,13 +34,16 @@ function links(definition: Record<string, unknown>): string[] {
  * Each entry under `services` becomes a component. `depends_on` and `links`
  * become dependencies. Relationships that are only implied, such as a service
  * reading a database URL from an environment variable, are not detected.
+ *
+ * The user's rules are keyed by image name (without registry or tag): they choose the kind a
+ * service is drawn as, or `ignore` to leave it out.
  */
 export const dockerComposeExtractor: Extractor = {
   name: "docker-compose",
 
   matches: (path) => COMPOSE_FILE.test(path),
 
-  extract(file) {
+  extract(file, options) {
     let document: unknown;
     try {
       document = parse(file.content);
@@ -55,11 +59,13 @@ export const dockerComposeExtractor: Extractor = {
     for (const [name, raw] of Object.entries(document["services"])) {
       const definition = isRecord(raw) ? raw : {};
       const image = typeof definition["image"] === "string" ? definition["image"] : undefined;
+      const kind = classifyImage(image, options?.rules);
+      if (kind === IGNORE) continue;
 
       nodes.push({
         id: name,
         name,
-        kind: classifyImage(image),
+        kind,
         source: file.path,
         ...(image !== undefined && { image }),
       });

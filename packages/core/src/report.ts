@@ -1,6 +1,7 @@
 import { isEmptyDiff, type ModelDiff } from "./diff.js";
 import { code, describeNode } from "./markdown.js";
 import { toMermaid } from "./mermaid.js";
+import type { KindStyle } from "./config.js";
 import type { ArchitectureModel } from "./model.js";
 
 /**
@@ -22,8 +23,13 @@ function section(title: string, items: readonly string[]): string[] {
  *
  * @param diff - Changes to describe.
  * @param after - Model of the revision being reviewed, drawn as the diagram.
+ * @param kinds - How to draw each kind of component, as in {@link toMermaid}.
  */
-export function renderDiffMarkdown(diff: ModelDiff, after: ArchitectureModel): string {
+export function renderDiffMarkdown(
+  diff: ModelDiff,
+  after: ArchitectureModel,
+  kinds?: Readonly<Record<string, Partial<KindStyle>>>,
+): string {
   const lines = [REPORT_MARKER, "## Trazo: architecture changes", ""];
 
   if (isEmptyDiff(diff)) {
@@ -64,7 +70,7 @@ export function renderDiffMarkdown(diff: ModelDiff, after: ArchitectureModel): s
     "### Resulting architecture",
     "",
     "```mermaid",
-    toMermaid(after, { added: new Set(diff.addedNodes.map((node) => node.id)) }),
+    toMermaid(after, { added: new Set(diff.addedNodes.map((node) => node.id)), ...(kinds && { kinds }) }),
     "```",
   );
   return lines.join("\n");

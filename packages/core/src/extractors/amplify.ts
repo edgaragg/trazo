@@ -1,4 +1,5 @@
 import type { ArchEdge, ArchNode, NodeKind } from "../model.js";
+import { IGNORE, ruleFor } from "./rules.js";
 import type { Extractor } from "./types.js";
 
 const BACKEND_CONFIG = /(^|\/)amplify\/backend\/backend-config\.json$/;
@@ -28,14 +29,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * Only this file is read. The CloudFormation Amplify generates under `amplify/backend` is skipped
  * on purpose: every function's template names its resource `LambdaFunction`, so it would only add
- * noise. Amplify Gen 2 has no such file — its backend is TypeScript — and is not supported.
+ * noise. The user's rules are keyed by service (`Lambda`, `DynamoDB`...): they choose the kind a
+ * resource is drawn as, or `ignore` to leave it out. Amplify Gen 2 has no such file — its backend is TypeScript — and is not supported.
  */
 export const amplifyExtractor: Extractor = {
   name: "amplify",
 
   matches: (path) => BACKEND_CONFIG.test(path),
 
-  extract(file) {
+  extract(file, options) {
     let config: unknown;
     try {
       config = JSON.parse(file.content);
@@ -53,13 +55,15 @@ export const amplifyExtractor: Extractor = {
       if (!isRecord(resources)) continue;
       for (const [name, definition] of Object.entries(resources)) {
         if (!isRecord(definition)) continue;
+        const service = typeof definition["service"] === "string" ? definition["service"] : undefined;
+        const kind = ruleFor(options?.rules, service) || (service && SERVICE_KINDS[service.toLowerCase()]) || "service";
+        if (kind === IGNORE) continue;
         entries.push({ category, name });
 
-        const service = typeof definition["service"] === "string" ? definition["service"] : undefined;
         nodes.push({
           id: `${category}/${name}`,
           name,
-          kind: (service && SERVICE_KINDS[service.toLowerCase()]) || "service",
+          kind,
           source: file.path,
           ...(service !== undefined && { type: service }),
         });

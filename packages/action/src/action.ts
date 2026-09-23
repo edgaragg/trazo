@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
-import { collectAtRef, collectWorkingTree } from "@edgaragg/trazo-cli";
+import { defaultExtractors, diffModels, extractModel, isEmptyDiff, renderDiffMarkdown, REPORT_MARKER } from "@edgaragg/trazo-core";
+import { collectAtRef, collectWorkingTree, loadConfig } from "@edgaragg/trazo-cli";
 
 interface PullRequestEvent {
   pull_request?: { number: number; base: { sha: string } };
@@ -71,8 +71,9 @@ export async function runAction(
   }
 
   const workspace = env["GITHUB_WORKSPACE"] ?? process.cwd();
-  const before = extractModel(collectAtRef(workspace, pullRequest.base.sha));
-  const after = extractModel(collectWorkingTree(workspace));
+  const config = loadConfig(workspace);
+  const before = extractModel(collectAtRef(workspace, pullRequest.base.sha), defaultExtractors, config);
+  const after = extractModel(collectWorkingTree(workspace), defaultExtractors, config);
   const diff = diffModels(before, after);
 
   const apiUrl = env["GITHUB_API_URL"] ?? "https://api.github.com";
@@ -85,7 +86,7 @@ export async function runAction(
     return;
   }
 
-  const body = renderDiffMarkdown(diff, after);
+  const body = renderDiffMarkdown(diff, after, config.kinds);
   if (existing) {
     await github(apiUrl, token, "PATCH", `/repos/${repository}/issues/comments/${existing.id}`, { body });
   } else {

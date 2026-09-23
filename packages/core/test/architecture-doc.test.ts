@@ -33,4 +33,15 @@ describe("renderArchitectureMarkdown", () => {
     expect(doc).toContain("## Components");
     expect(doc).not.toContain("## Dependencies");
   });
+
+  it("tells the reader which command regenerates the file, when it is given one", () => {
+    const doc = renderArchitectureMarkdown({ nodes: [], edges: [] }, { command: "trazo generate --write" });
+    expect(doc).toContain("regenerate it with `trazo generate --write`.");
+    expect(doc).not.toContain("ARCHITECTURE.md");
+  });
+
+  it("falls back to the default command when the given one would break the Markdown", () => {
+    const doc = renderArchitectureMarkdown({ nodes: [], edges: [] }, { command: "trazo generate --out a`b" });
+    expect(doc).toContain("--out ARCHITECTURE.md");
+  });
 });
