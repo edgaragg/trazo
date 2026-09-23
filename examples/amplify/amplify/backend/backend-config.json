@@ -1,0 +1,41 @@
+{
+  "auth": {
+    "shopauth": {
+      "service": "Cognito",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": []
+    }
+  },
+  "api": {
+    "shopapi": {
+      "service": "AppSync",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": [
+        { "category": "auth", "resourceName": "shopauth", "attributes": ["UserPoolId"] },
+        { "category": "function", "resourceName": "checkout", "attributes": ["Name", "Arn"] }
+      ]
+    }
+  },
+  "function": {
+    "checkout": {
+      "build": true,
+      "service": "Lambda",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": [
+        { "category": "storage", "resourceName": "orders", "attributes": ["Name", "Arn"] }
+      ]
+    },
+    "resizeimage": {
+      "build": true,
+      "service": "Lambda",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": [
+        { "category": "storage", "resourceName": "uploads", "attributes": ["BucketName"] }
+      ]
+    }
+  },
+  "storage": {
+    "orders": { "service": "DynamoDB", "providerPlugin": "awscloudformation" },
+    "uploads": { "service": "S3", "providerPlugin": "awscloudformation" }
+  }
+}

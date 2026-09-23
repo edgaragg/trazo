@@ -1,9 +1,25 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { defaultExtractors, type SourceFile } from "@edgaragg/trazo-core";
 
-const IGNORED_DIRECTORIES = new Set(["node_modules", ".git", "dist", "build", ".next", "vendor"]);
+// Build output and copies of the real thing: `.aws-sam` and `cdk.out` hold synthesised templates, and
+// Amplify keeps a copy of the last deployed backend in `#current-cloud-backend`. Naming one of them as the
+// directory to scan still works: only entries found while walking are skipped.
+const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "vendor",
+  ".aws-sam",
+  "cdk.out",
+  "#current-cloud-backend",
+]);
+
+// Extractors that match every JSON or YAML file would otherwise read data files of any size.
+const MAX_FILE_BYTES = 2_000_000;
 
 const isSupported = (path: string) => defaultExtractors.some((extractor) => extractor.matches(path));
 
@@ -21,7 +37,11 @@ export function collectWorkingTree(root: string): SourceFile[] {
       const relativePath = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
         if (!IGNORED_DIRECTORIES.has(entry.name)) walk(relativePath);
-      } else if (entry.isFile() && isSupported(relativePath)) {
+      } else if (
+        entry.isFile() &&
+        isSupported(relativePath) &&
+        statSync(join(root, relativePath)).size <= MAX_FILE_BYTES
+      ) {
         files.push({ path: relativePath, content: readFileSync(join(root, relativePath), "utf8") });
       }
     }

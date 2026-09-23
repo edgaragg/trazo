@@ -1,6 +1,6 @@
 # @edgaragg/trazo-cli
 
-Architecture docs that can't go stale. Trazo reads your Docker Compose files and Kubernetes manifests, draws the architecture as a [Mermaid](https://mermaid.js.org) diagram, and reports what changed between two git revisions.
+Architecture docs that can't go stale. Trazo reads your Docker Compose files, Kubernetes manifests, CloudFormation / SAM templates and AWS Amplify backends, draws the architecture as a [Mermaid](https://mermaid.js.org) diagram, and reports what changed between two git revisions.
 
 The diagram is generated from the files that already define your system, not guessed by a language model, so it can't invent things that aren't there.
 

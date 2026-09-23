@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: An orders API on AWS SAM
+
+Resources:
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  OrdersQueue:
+    Type: AWS::SQS::Queue
+
+  CreateOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: create.handler
+      Runtime: nodejs22.x
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+          QUEUE_URL: !Ref OrdersQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OrdersTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt OrdersQueue.QueueName
+      Events:
+        Create:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: post
+
+  ProcessOrderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process.handler
+      Runtime: nodejs22.x
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref OrdersTable
+      Events:
+        FromQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt OrdersQueue.Arn

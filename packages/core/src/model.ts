@@ -18,6 +18,12 @@ export interface ArchNode {
   source: string;
   /** Container image reference, when the component is defined by one. */
   image?: string;
+  /**
+   * What the component is in the source format's own terms, when that says more than
+   * `kind` does: a CloudFormation resource type such as `AWS::Lambda::Function`, or an
+   * Amplify service such as `DynamoDB`.
+   */
+  type?: string;
 }
 
 /** A dependency between two components. */
