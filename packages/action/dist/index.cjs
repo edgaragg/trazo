@@ -7433,7 +7433,7 @@ var KINDS = [
     "queue"
   ],
   [
-    /^AWS::(Lambda::Function|Serverless::(Function|Api|HttpApi|StateMachine)|ApiGateway::RestApi|ApiGatewayV2::Api|AppSync::GraphQLApi|StepFunctions::StateMachine|ECS::Service|EC2::Instance|CloudFront::Distribution|Cognito::UserPool|ElasticLoadBalancingV2::LoadBalancer|AppRunner::Service|Batch::JobDefinition|Glue::Job)$/,
+    /^AWS::(Lambda::Function|Serverless::(Function|Api|HttpApi|StateMachine)|ApiGateway::RestApi|ApiGatewayV2::Api|AppSync::GraphQLApi|StepFunctions::StateMachine|ECS::Service|EC2::Instance|CloudFront::Distribution|Cognito::UserPool|ElasticLoadBalancing::LoadBalancer|ElasticLoadBalancingV2::LoadBalancer|AutoScaling::AutoScalingGroup|AppRunner::Service|Batch::JobDefinition|Glue::Job)$/,
     "service"
   ]
 ];

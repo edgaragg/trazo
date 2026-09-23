@@ -33,6 +33,21 @@ Resources:
     expect(byName["Worker"]).toMatchObject({ kind: "service", type: "AWS::Lambda::Function" });
   });
 
+  it("draws a classic load balancer and an auto scaling group, and links the balancer to its servers", () => {
+    const model = extract(`
+Resources:
+  Web: { Type: "AWS::EC2::Instance" }
+  Pool: { Type: "AWS::AutoScaling::AutoScalingGroup" }
+  Balancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties: { Instances: [!Ref Web] }
+`);
+
+    expect(names(model)).toEqual(["Balancer", "Pool", "Web"]);
+    expect(model.nodes.every((node) => node.kind === "service")).toBe(true);
+    expect(arrows(model)).toEqual(["Balancer → Web"]);
+  });
+
   it("leaves out configuration that is not a component", () => {
     const model = extract(`
 Resources:

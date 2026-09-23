@@ -51,7 +51,7 @@ Databases, caches and queues are recognised from their image and drawn with thei
 
 Trazo also reads Kubernetes manifests ([`examples/kubernetes/app.yaml`](examples/kubernetes/app.yaml)): Deployments, StatefulSets, DaemonSets, Jobs, CronJobs and Pods each become a component, and an Ingress is linked to the workload its backend Service selects.
 
-It reads AWS too. [`examples/cloudformation/template.yaml`](examples/cloudformation/template.yaml) is a SAM application: tables, buckets, queues, topics, functions and APIs become components, and a component depends on whatever it refers to (`!Ref`, `!GetAtt`, `!Sub`, `DependsOn`), even through an IAM role. The arrow points from whoever calls to whoever is called, so an API points at the function behind it and a queue at the function it triggers. [`examples/amplify`](examples/amplify) is an Amplify (Gen 1) backend, read from its `backend-config.json`: each resource under its category, with its `dependsOn` as the dependencies.
+It reads AWS too. [`examples/cloudformation/template.yaml`](examples/cloudformation/template.yaml) is a SAM application: tables, buckets, queues, topics, functions and APIs become components, and a component depends on whatever it refers to (`!Ref`, `!GetAtt`, `!Sub`, `DependsOn`), even through an IAM role. [`examples/cloudformation/web-tier.yaml`](examples/cloudformation/web-tier.yaml) is a classic servers-behind-a-load-balancer setup, where the VPC, subnets and security groups are left out. The arrow points from whoever calls to whoever is called, so an API points at the function behind it and a queue at the function it triggers. [`examples/amplify`](examples/amplify) is an Amplify (Gen 1) backend, read from its `backend-config.json`: each resource under its category, with its `dependsOn` as the dependencies.
 
 ## Installation
 
@@ -189,6 +189,10 @@ files → extractor → architecture model → diff against base → Markdown re
 - [ ] A richer ARCHITECTURE.md (components and dependencies are very bare today)
 - [ ] `trazo check`, to fail a build when the architecture changed without an update to the docs
 - [ ] Optional LLM-written descriptions on top of the extracted model (bring your own API key)
+- [ ] A `trazo.config.yaml` to configure the output of `trazo generate`, all of it optional with sensible defaults:
+  - **Output**: a directory relative to the project (default `.trazo`, so one document per source — Compose, each Kubernetes namespace, CloudFormation... — doesn't fill the repository root) and the file name (default `architecture.md`).
+  - **Styles**: the Mermaid shape and style of each kind of component (`service`, `database`, `cache`, `queue`).
+  - **Per-extractor mapping**: for each extractor (`docker-compose`, `kubernetes`, `cloudformation`, `amplify`), which kind each resource type becomes (for example `AWS::S3::Bucket: queue`), or `ignore` to leave that type out of the diagram. Explicit and deterministic, like `.trazoignore`: it changes how something is drawn, never what exists.
 - [ ] A `.trazoignore` file (and/or a CLI `--exclude` flag) to skip specific paths, for files that are illustrative rather than real — a Kubernetes manifest kept purely as a documentation example, for instance. Not solved by guessing from a filename or folder convention like `*.example.yaml`: that always misclassifies someone's setup in one direction or the other. An explicit, deterministic list of paths to skip stays true to "the diagram can't invent things that aren't there" — it also does not invent what to leave out.
 
 ## Limitations
