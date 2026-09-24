@@ -2,7 +2,7 @@
 
 Architecture docs that can't go stale. Trazo extracts your system's structure from code and infrastructure files, generates Mermaid diagrams, and flags architecture changes on every pull request.
 
-> **Status: early.** It works end to end and reads Docker Compose, Kubernetes, CloudFormation / SAM and AWS Amplify. See the [roadmap](#roadmap).
+> **Status: alpha.** It works end to end and reads Docker Compose, Kubernetes, CloudFormation / SAM and AWS Amplify, but it is at version 0.x: the command line, the configuration format and the library API can still change between minor versions, and some of what it reads is not covered yet (see the [limitations](#limitations) and the [roadmap](#roadmap)).
 
 ## Why
 
@@ -100,7 +100,7 @@ npm update -g @edgaragg/trazo-cli      # update a global install
 npm uninstall -g @edgaragg/trazo-cli   # remove it
 ```
 
-Trazo is at version 0.1, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.2.0 ...`) instead of following whatever is newest.
+Trazo is in alpha, so the interface can still change between minor versions. In CI, pin the version you tested with (`npx @edgaragg/trazo-cli@0.2.0 ...`) instead of following whatever is newest.
 
 ## Usage
 

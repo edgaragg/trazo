@@ -1,5 +1,7 @@
 # @edgaragg/trazo-core
 
+> **Alpha.** Trazo works end to end, but it is at version 0.x: the command line, the configuration format and the library API can still change between minor versions, and some of what it reads is not covered yet (see the [limitations](https://github.com/edgaragg/trazo#limitations)). Pin the version you use.
+
 The engine behind [Trazo](https://github.com/edgaragg/trazo): it reads infrastructure files into an architecture model, compares two models, and renders them as Mermaid diagrams and Markdown. It never touches the filesystem, so it is easy to embed and to test.
 
 Most people want the command line ([`@edgaragg/trazo-cli`](https://www.npmjs.com/package/@edgaragg/trazo-cli)) or a CI integration instead. Use this package to build your own tooling on the same model.

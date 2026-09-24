@@ -1,5 +1,7 @@
 # @edgaragg/trazo-cli
 
+> **Alpha.** Trazo works end to end, but it is at version 0.x: the command line, the configuration format and the library API can still change between minor versions, and some of what it reads is not covered yet (see the [limitations](https://github.com/edgaragg/trazo#limitations)). Pin the version you use.
+
 Architecture docs that can't go stale. Trazo reads your Docker Compose files, Kubernetes manifests, CloudFormation / SAM templates and AWS Amplify backends, draws the architecture as a [Mermaid](https://mermaid.js.org) diagram, and reports what changed between two git revisions.
 
 The diagram is generated from the files that already define your system, not guessed by a language model, so it can't invent things that aren't there.
