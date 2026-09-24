@@ -1,7 +1,7 @@
 {
   "name": "@edgaragg/trazo-cli",
   "version": "0.2.0",
-  "description": "Generate Mermaid architecture diagrams from your infrastructure code, and catch architecture drift.",
+  "description": "[Alpha] Generate Mermaid architecture diagrams from your infrastructure code, and catch architecture drift.",
   "license": "MIT",
   "author": "Edgar González",
   "repository": {
